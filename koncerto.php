@@ -221,8 +221,36 @@ class KoncertoEntity
             $propName = $prop->getName();
             $emptyKey = null !== $id && array_key_exists($id, $data) && empty($data[$propName]);
             if (!$emptyKey && array_key_exists($propName, $data)) {
-                // @todo - convert type
-                $this->$propName = $data[$propName];
+                $comment = $prop->getDocComment();
+                if (false === $comment) {
+                    $comment = '';
+                }
+                $propType = $this->getType($comment);
+                $value = $data[$propName];
+                if ('?' === substr($propType, 0, 1)) {
+                    $propType = substr($propType, 1);
+                    if (empty($value)) {
+                        $value = null;
+                        $propType = 'null';
+                    }
+                }
+                switch ($propType) {
+                    case 'bool':
+                    case 'boolean':
+                        $value = filter_var($value, FILTER_VALIDATE_BOOL);
+                        break;
+                    case 'float':
+                        $value = floatval($value);
+                        break;
+                    case 'int':
+                    case 'integer':
+                        $value = intval($value);
+                        break;
+                    case 'string':
+                        $value = strval($value);
+                        break;
+                }
+                $this->$propName = $value;
             }
         }
 
@@ -246,7 +274,11 @@ class KoncertoEntity
         return $obj;
     }
 
+    /**
+     * @return KoncertoEntity
+     */
     public function persist() {
+        // @todo - get entityName and entityManager from entity internal annotation
         $pdo = new PDO(Koncerto::getConfig('entityManager.default'));
 
         $data = $this->serialize();
@@ -313,9 +345,8 @@ class KoncertoEntity
             $lines = explode("\n", $comment);
             foreach ($lines as $line) {
                 $line = trim($line);
-                $line = trim(preg_replace('/^\*[ ]*/', '', $line));
-                if (1 === sscanf($line, '@internal %s', $json)) {
-                    $internal = (array)json_decode($json, true);
+                if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
+                    $internal = (array)json_decode((string)$json, true);
                     if (!array_key_exists('key', $internal)) {
                         return null;
                     }
@@ -324,6 +355,27 @@ class KoncertoEntity
                 }
             }
         }
+    }
+
+    /**
+     * Get column type from @var comments
+     * @param string $comment
+     * @return string
+     */
+    private function getType($comment) {
+        $type = 'string';
+
+        $lines = explode("\n", $comment);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (2 === sscanf($line, "%*[^@]@var %[^\n]s", $varType)) {
+                $type = (string)$varType;
+
+                break;
+            }
+        }
+
+        return $type;
     }
 }
 
@@ -690,7 +742,7 @@ class KoncertoResponse
     }
 
     /**
-     * @retrun string
+     * @return string
      */
     public function getContent() {
         return $this->content;
@@ -728,6 +780,10 @@ class KoncertoRouter
      * @return void
      */
     private function getRoutes($url) {
+        if (!is_dir('_cache')) {
+            mkdir('_cache');
+        }
+
         if (0 === count($this->routes) && is_file('_cache/routes.json')) {
             $this->routes = (array)json_decode('_cache/routes.json', true);
         }
@@ -737,6 +793,9 @@ class KoncertoRouter
         }
 
         $d = '_controller/';
+        if (!is_dir($d)) {
+            mkdir($d);
+        }
         $dir = opendir($d);
         while ($f = readdir($dir)) {
             if (is_file($d . $f) && '.php' === strrchr($f, '.')) {
@@ -793,9 +852,8 @@ class KoncertoRouter
         $lines = explode("\n", $comment);
         foreach ($lines as $line) {
             $line = trim($line);
-            $line = trim(preg_replace('/^\*[ ]*/', '', $line));
-            if (1 === sscanf($line, '@internal %s', $json)) {
-                $internal = (array)json_decode($json, true);
+            if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
+                $internal = (array)json_decode((string)$json, true);
                 if (!array_key_exists('route', $internal)) {
                     return null;
                 }
