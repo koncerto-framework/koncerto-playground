@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    [onload;file=_layout.tbs.html;getpart=head]
+</head>
+
+<body>
+    [onload;file=_layout.tbs.html;getpart=(header)]
+    <section class="section" style="padding-top: 100px; box-sizing: border-box; height: 100vh;">
+        <div class="columns is-mobile" style="height: 100%;">
+            <div class="column is-narrow">
+                <aside class="menu">
+                    [files;block=begin;sub1]
+                    <p class="menu-label">[files.$]</p>
+                    <ul class="menu-list">
+                        <li>
+                                <a href="#[files.$]/[files_sub1.val;block=li]"
+                                onclick="window.loadFile('[files.$;strconv=js]/[files_sub1.val;strconv=js]');">
+                                    [files_sub1.val]
+                                </a>
+                        </li>
+                    </ul>
+                    [files;block=end]
+                </aside>
+            </div>
+            <div id="container" class="column">
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.26.1/min/vs/loader.min.js"></script>
+                <script>
+                // require is provided by loader.min.js.
+                require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.26.1/min/vs' }});
+                require(["vs/editor/editor.main"], () => {
+                    window.editor = monaco.editor.create(document.getElementById('container'), {
+                        value: '',
+                        language: 'php'
+                    });
+                });
+                window.currentFile = '';
+                window.loadFile = function (path) {
+                    if (path in localStorage) {
+                        window.editor.setValue(localStorage.getItem(path));
+                    } else {
+                        console.error(`${path} file not found`);
+                        window.editor.setValue('');
+                    }
+                    window.currentFile = path;
+                }
+                window.saveFile = function() {
+                    localStorage.setItem(window.currentFile, window.editor.getValue());
+                }
+                </script>
+            </div>
+        </div>
+
+    </section>
+</body>
+
+</html>

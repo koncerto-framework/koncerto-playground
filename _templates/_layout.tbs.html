@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="google-site-verification" content="QU1F7uhFGM5se6kjAHMdumz-5qhnifAqHdgAQdewGRk" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Koncerto | [title;noerr]</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+        <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css">    </head>
+    <body>
+        <header>
+            <nav class="navbar is-primary is-fixed-top" role="navigation" aria-label="main navigation">
+                <div class="navbar-brand">
+                    <a class="navbar-item">
+                        <span class="icon">
+                            <i class="las la-drum"></i>
+                        </span>
+                        <span><strong>k</strong>oncerto</span>
+                    </a>
+
+                    <a role="button" class="navbar-burger has-text-white" aria-label="menu" aria-expanded="false" data-target="#menu"
+                    onclick="document.querySelector(this.getAttribute('data-target')).classList.toggle('is-active');">
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                    </a>
+                </div>
+
+                <div id="menu" class="navbar-menu">
+                    <div class="navbar-start">
+                        <div class="navbar-item has-dropdown is-hoverable">
+                            <a class="navbar-link">
+                            File
+                            </a>
+
+                            <div class="navbar-dropdown">
+                                <a href="#" class="navbar-item">
+                                    New project
+                                </a>
+                                <a href="#" class="navbar-item">
+                                    Open project
+                                </a>
+                                <hr class="navbar-divider">
+                                <a href="#" onclick="javascript:window.saveFile()" class="navbar-item">
+                                    Save
+                                </a>
+                            </div>
+                        </div>
+                        <div class="navbar-item has-dropdown is-hoverable">
+                            <a class="navbar-link">
+                            Run
+                            </a>
+
+                            <div class="navbar-dropdown">
+                                <a href="run.html" target="_blank" class="navbar-item">
+                                    Run without debugging
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="navbar-end">
+                        <div class="navbar-item">
+                            <div class="buttons">
+                                <a href="https://github.com/koncerto-framework" target="_blank" class="button">
+                                    <span class="icon">
+                                        <i class="lab la-github"></i>
+                                    </span>
+                                    <span>
+                                        <strong>Github</strong>
+                                    </span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+    </body>
+</html>
