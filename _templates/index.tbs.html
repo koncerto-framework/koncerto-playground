@@ -25,8 +25,8 @@
                 </aside>
             </div>
             <div id="container" class="column">
-                <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.26.1/min/vs/loader.min.js"></script>
-                <script>
+                <script data-reload onload="if (window.reloadScript) reloadScript('#editor-script')" src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.26.1/min/vs/loader.min.js"></script>
+                <script id="editor-script">
                 // require is provided by loader.min.js.
                 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.26.1/min/vs' }});
                 require(["vs/editor/editor.main"], () => {
@@ -48,6 +48,23 @@
                 window.saveFile = function() {
                     localStorage.setItem(window.currentFile, window.editor.getValue());
                 }
+                window.addEventListener('resize', function(event) {
+                    var parent = document.querySelector('#container').parentElement;
+                    window.editor.layout({ width: 0, height: 0 });
+                    window.requestAnimationFrame(function() {
+                        var rect = parent.getBoundingClientRect();
+                        window.editor.layout({ width: rect.width, height: rect.height });
+                    });
+                });
+                document.querySelectorAll('.navbar-dropdown a').forEach(function (a) {
+                    a.addEventListener('click', function() {
+                        a.parentNode.style.display = 'none';
+                        setTimeout(function() {
+                            a.parentNode.style.display = '';
+                            a.blur();
+                        }, 100);
+                    })
+                });
                 </script>
             </div>
         </div>

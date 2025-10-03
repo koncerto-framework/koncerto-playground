@@ -8,11 +8,17 @@ class PlaygroundController extends KoncertoController
      */
     public function index() {
         $files = array();
-        $dir = opendir('.');
-        while ($d = readdir($dir)) {
-            if (is_dir($d) && '_' === substr($d, 0, 1)) {
-                $files[$d] = array_filter(scandir($d), function ($f) {
-                    return '.' !== substr($f, 0, 1);
+
+        $d = 'project/';
+        if (!is_dir($d)) {
+            mkdir($d);
+        }
+
+        $dir = opendir($d);
+        while ($f = readdir($dir)) {
+            if (is_dir($d . $f) && '_' === substr($f, 0, 1)) {
+                $files[$f] = array_filter(scandir($d . $f), function ($file) {
+                    return '.' !== substr($file, 0, 1);
                 });
             }
         }
