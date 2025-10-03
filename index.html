@@ -1,0 +1,127 @@
+<html>
+    <head>
+        <meta name="google-site-verification" content="QU1F7uhFGM5se6kjAHMdumz-5qhnifAqHdgAQdewGRk" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+        <script async type="module" src="https://cdn.jsdelivr.net/npm/php-wasm@0.0.9-alpha-20/php-tags.mjs"></script>
+        <script type="text/javascript">
+
+            function proxy(url) {
+                return `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+            }
+
+            var files = [
+                {
+                    name: 'koncerto.php',
+                    parent: '/preload/',
+                    url : proxy('https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/koncerto.php')
+                },
+                {
+                    name: 'tbs_class.php',
+                    parent: '/preload/',
+                    url : proxy('https://github.com/Skrol29/tinybutstrong/raw/refs/heads/master/tbs_class.php')
+                }
+            ];
+            var script = document.createElement('script');
+            script.setAttribute('type', 'text/php');
+            script.setAttribute('data-files', JSON.stringify(files));
+            script.setAttribute('data-stdout', ':root');
+            script.innerText = `<?php
+
+                $storage = array(
+                    '_cache' => array(),
+                    '_controller' => array(
+                        'PlaygroundController.php'
+                    ),
+                    '_templates' => array(
+                        '_layout.tbs.html',
+                        'index.tbs.html'
+                    )
+                );
+
+                foreach ($storage as $dir => $files) {
+                    if (!is_dir($dir)) {
+                        mkdir($dir);
+                    }
+                    foreach ($files as $file) {
+                        file_put_contents(
+                            sprintf('%s/%s', $dir, $file),
+                            file_get_contents(sprintf(
+                                'https://corsproxy.io/?url=https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/%s/%s',
+                                $dir,
+                                $file
+                            ))
+                        );
+                    }
+                }
+
+                $d = 'project/';
+                if (!is_dir($d)) {
+                    mkdir($d);
+                }
+
+                $localStorage = json_decode(rawurldecode("${encodeURIComponent(JSON.stringify(localStorage))}"), true);
+
+                foreach ($localStorage as $path => $content) {
+                    list ($dir, $file) = explode('/', $path);
+                    if (!is_dir($d . $dir)) {
+                        mkdir($d . $dir);
+                    }
+                    file_put_contents($d . $path, $content);
+                }
+
+                require_once('/preload/koncerto.php');
+
+                echo Koncerto::response();
+            `;
+
+            window.reloadScript = function(selector) {
+                document.querySelector(selector);
+                eval(selector.text);
+            }
+
+            var targetNode = document.querySelector(':root');
+            var config = { childList: true, subtree: true };
+            var callback = function(mutationList, observer) {
+                Array.from(mutationList).forEach(function(mutation) {
+                    var scripts = mutation.target.querySelectorAll('script');
+                    scripts.forEach(function (script) {
+                        if ('' !== script.src && script.hasAttribute('data-reload')) {
+                            fetch(script.src).then(function (result) {
+                                result.text().then(function (js) {
+                                    eval(js);
+                                    if (script.hasAttribute('onload')) {
+                                        eval(script.getAttribute('onload'));
+                                    }
+                                })
+                            });
+                        }
+                        if ('' === script.src) {
+                            if (-1 !== script.text.indexOf('//' + ' require is provided by loader.min.js.')) {
+                                setTimeout(function() {
+                                    observer.disconnect();
+                                    eval(script.text);
+                                }, 1000);
+                            }
+                        }
+                    });
+                });
+            };
+
+            var observer = new MutationObserver(callback);
+            observer.observe(targetNode, config);
+
+            var head = document.getElementsByTagName('head')[0];
+            head.appendChild(script);
+
+        </script>
+    </head>
+    <body>
+        <div class="container is-fluid" style="height: 100vh;">
+            <div class="columns is-mobile is-vcentered" style="height: 100%;">
+                <div class="column"></div>
+                <div class="column is-narrow"><span class="loader" style="width: 100px; height: 100px;"></span></div>
+                <div class="column"></div>
+            </div>
+        </div>
+    </body>
+</html>

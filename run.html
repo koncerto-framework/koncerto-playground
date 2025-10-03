@@ -1,0 +1,66 @@
+<html>
+    <head>
+        <meta name="google-site-verification" content="QU1F7uhFGM5se6kjAHMdumz-5qhnifAqHdgAQdewGRk" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+        <script async type="module" src="https://cdn.jsdelivr.net/npm/php-wasm@0.0.9-alpha-20/php-tags.mjs"></script>
+        <script type="text/javascript">
+
+            function proxy(url) {
+                return `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+            }
+
+            var files = [
+                {
+                    name: 'koncerto.php',
+                    parent: '/preload/',
+                    url : proxy('https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/koncerto.php')
+                },
+                {
+                    name: 'tbs_class.php',
+                    parent: '/preload/',
+                    url : proxy('https://github.com/Skrol29/tinybutstrong/raw/refs/heads/master/tbs_class.php')
+                }
+            ];
+
+            var project = {};
+            var path = location.hash.substring(1);
+            path = `projects${path}/`;
+            for (var i in localStorage) {
+                if (0 === i.indexOf(path)) {
+                    project[i.substring(path.length)] = localStorage.getItem(i);
+                }
+            }
+            var script = document.createElement('script');
+            script.setAttribute('type', 'text/php');
+            script.setAttribute('data-files', JSON.stringify(files));
+            script.setAttribute('data-stdout', ':root');
+            script.innerText = `<?php
+
+                $localStorage = json_decode(rawurldecode("${encodeURIComponent(JSON.stringify(project))}"), true);
+
+                foreach ($localStorage as $path => $content) {
+                    list ($dir, $file) = explode('/', $path);
+                    if (!is_dir($dir)) {
+                        mkdir($dir);
+                    }
+                    file_put_contents($path, $content);
+                }
+
+                require_once('/preload/koncerto.php');
+
+                echo Koncerto::response();
+            `;
+            var head = document.getElementsByTagName('head')[0];
+            head.appendChild(script);
+        </script>
+    </head>
+    <body>
+        <div class="container is-fluid" style="height: 100vh;">
+            <div class="columns is-mobile is-vcentered" style="height: 100%;">
+                <div class="column"></div>
+                <div class="column is-narrow"><span class="loader" style="width: 100px; height: 100px;"></span></div>
+                <div class="column"></div>
+            </div>
+        </div>
+    </body>
+</html>
