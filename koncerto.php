@@ -1,54 +1,67 @@
 <?php
 
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
 /**
  * Koncerto Framework
  * This is Koncerto Framework main class
  */
 class Koncerto
 {
-    static $config = array();
+    /**
+     * @var array<string, string|array>
+    */
+    // @phpstan-ignore missingType.iterableValue
+    private static $config = array();
 
     /**
      * Use Koncerto from source with autoload
+     *
      * @return void
      */
-    public static function autoload() {
+    public static function autoload()
+    {
         spl_autoload_register('Koncerto::loadClass');
     }
 
     /**
      * Load class from source when using Koncerto with autoload
-     * @param string $className
+     *
+     * @param  string $className
      * @return void
      */
-    public static function loadClass($className) {
+    public static function loadClass($className)
+    {
         if ('clsTinyButStrong' === $className && !class_exists('clsTinyButStrong')) {
             self::loadTBS();
             return;
         }
 
         if (!class_exists($className)) {
-            require_once(dirname(__FILE__) . '/' . $className . '.php');
+            include_once dirname(__FILE__) . '/' . $className . '.php';
         }
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, string|array<string, string>> $config
      * @return void
      */
-    public static function setConfig($config) {
+    public static function setConfig($config)
+    {
         Koncerto::$config = $config;
     }
 
     /**
-     * @param string $entry
+     * @param  string $entry
      * @return ?string
      */
-    public static function getConfig($entry) {
+    public static function getConfig($entry)
+    {
         $config = Koncerto::$config;
 
         $path = explode('.', $entry);
 
+        // @phpstan-ignore notIdentical.alwaysTrue
         while (false !== ($subentry = array_shift($path))) {
             if (!is_array($config) || !array_key_exists($subentry, $config)) {
                 $config = null;
@@ -62,14 +75,16 @@ class Koncerto
             }
         }
 
-        return $config;
+        return is_string($config) ? $config : null;
     }
 
     /**
      * Static function to return response from Koncerto Framework
+     *
      * @return string
      */
-    public static function response() {
+    public static function response()
+    {
         $request = new KoncertoRequest();
         $router = new KoncertoRouter();
         $match = $router->match($request->getPathInfo());
@@ -89,7 +104,8 @@ class Koncerto
     /**
      * @return void
      */
-    private static function loadTBS() {
+    private static function loadTBS()
+    {
         $tbsLocations = array(
             dirname(__FILE__) . '/tbs_class.php',
             dirname(__FILE__) . '/../tbs_class.php',
@@ -99,7 +115,7 @@ class Koncerto
 
         foreach ($tbsLocations as $tbsLocation) {
             if (is_file($tbsLocation)) {
-                require_once($tbsLocation);
+                include_once $tbsLocation;
 
                 return;
             }
@@ -108,18 +124,21 @@ class Koncerto
 }
 
 
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
 /**
  *  Base (and Helper) class for Koncerto controllers
  */
 class KoncertoController
 {
     /**
-     * @param string $template
-     * @param array<string, mixed> $context
-     * @param array<string, string> $headers
-     * @return KoncertResponse
+     * @param  string                $template
+     * @param  array<string, mixed>  $context
+     * @param  array<string, string> $headers
+     * @return KoncertoResponse
      */
-    public function render($template, $context = array(), $headers = array()) {
+    public function render($template, $context = array(), $headers = array())
+    {
         Koncerto::loadClass('clsTinyButStrong');
 
         $tbs = new clsTinyButStrong();
@@ -137,8 +156,10 @@ class KoncertoController
                 $tbs->MergeBlock($key, 'array', $value);
                 continue;
             }
-            if (is_a($value, 'KoncertoForm')) {
-                /** @var KoncertoForm */
+            if (is_object($value) && is_a($value, 'KoncertoForm')) {
+                /**
+                 * @var KoncertoForm
+                 */
                 $form = $value;
                 $form->setOption('name', $key);
                 $tbs->TplVars[sprintf('forms[%s]', $key)] = $form;
@@ -191,16 +212,19 @@ class KoncertoController
     }
 
     /**
-     * @param array<array-key, mixed> $data
-     * @return KoncertResponse
+     * @param  array<array-key, mixed> $data
+     * @return KoncertoResponse
      */
-    public function json($data) {
+    public function json($data)
+    {
         return (new KoncertoResponse())
             ->setHeader('Content-type', 'application/json')
-            ->setContent(json_encode($data));
+            ->setContent((string)json_encode($data));
     }
 }
 
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
 
 /**
  * Helper class for ORM
@@ -208,10 +232,11 @@ class KoncertoController
 class KoncertoEntity
 {
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, bool|float|int|string|null> $data
      * @return KoncertoEntity
      */
-    public function hydrate($data) {
+    public function hydrate($data)
+    {
         $id = $this->getId();
 
         $ref = new ReflectionClass($this);
@@ -258,9 +283,10 @@ class KoncertoEntity
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, bool|float|int|string|null>
      */
-    public function serialize() {
+    public function serialize()
+    {
         $obj = array();
 
         $ref = new ReflectionClass($this);
@@ -275,21 +301,31 @@ class KoncertoEntity
     }
 
     /**
-     * @return KoncertoEntity
+     * @return ?KoncertoEntity
      */
-    public function persist() {
+    public function persist()
+    {
         // @todo - get entityName and entityManager from entity internal annotation
-        $pdo = new PDO(Koncerto::getConfig('entityManager.default'));
+        $dsn = Koncerto::getConfig('entityManager.default');
+        if (null === $dsn) {
+            return null;
+        }
+        $pdo = new PDO($dsn);
 
         $data = $this->serialize();
         $fields = array_keys($data);
-        $placeholders = array_map(function ($field) { return ':' . $field; }, $fields);
+        $placeholders = array_map(
+            function ($field) {
+                return ':' . $field;
+            },
+            $fields
+        );
 
         $entityName = strtolower(get_class($this));
 
         $id = $this->getId();
         if (null === $id) {
-            return;
+            return null;
         }
 
         if (empty($data[$id])) {
@@ -304,9 +340,13 @@ class KoncertoEntity
                 )
             );
         } else {
-            $updates = array_map(function ($field, $placeholder) {
-                return sprintf('%s = %s', $field, $placeholder);
-            }, $fields, $placeholders);
+            $updates = array_map(
+                function ($field, $placeholder) {
+                    return sprintf('%s = %s', $field, $placeholder);
+                },
+                $fields,
+                $placeholders
+            );
 
             $query = $pdo->prepare(
                 sprintf(
@@ -321,9 +361,14 @@ class KoncertoEntity
 
         $query->execute($data);
 
-        $data = array();
         if (!array_key_exists($id, $data) || empty($data[$id])) {
-            $data = array($id => $pdo->lastInsertId());
+            if (false !== $pdo->lastInsertId()) {
+                $data = array($id => $pdo->lastInsertId());
+            } else {
+                $data = array();
+            }
+        } else {
+            $data = array();
         }
 
         return $this->hydrate($data);
@@ -331,9 +376,11 @@ class KoncertoEntity
 
     /**
      * Get ID column from @internal comments
+     *
      * @return ?string
      */
-    private function getId() {
+    private function getId()
+    {
         $ref = new ReflectionClass($this);
         $props = $ref->getProperties(ReflectionProperty::IS_PUBLIC);
 
@@ -345,6 +392,7 @@ class KoncertoEntity
             $lines = explode("\n", $comment);
             foreach ($lines as $line) {
                 $line = trim($line);
+                // @phpstan-ignore argument.sscanf
                 if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
                     $internal = (array)json_decode((string)$json, true);
                     if (!array_key_exists('key', $internal)) {
@@ -355,19 +403,24 @@ class KoncertoEntity
                 }
             }
         }
+
+        return null;
     }
 
     /**
      * Get column type from @var comments
-     * @param string $comment
+     *
+     * @param  string $comment
      * @return string
      */
-    private function getType($comment) {
+    private function getType($comment)
+    {
         $type = 'string';
 
         $lines = explode("\n", $comment);
         foreach ($lines as $line) {
             $line = trim($line);
+            // @phpstan-ignore argument.sscanf
             if (2 === sscanf($line, "%*[^@]@var %[^\n]s", $varType)) {
                 $type = (string)$varType;
 
@@ -380,51 +433,167 @@ class KoncertoEntity
 }
 
 
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
+/**
+ * This class allows to create enumerations to use with entities and forms
+ * Reserved keywords : cases, from
+ */
+class KoncertoEnum
+{
+    /**
+     * @var array<array-key, bool|float|int|string|null>
+     */
+    private static $cases = array();
+
+    /**
+     * Return the int value of the enum case
+     *
+     * @param  string       $name
+     * @param  array<mixed> $arguments
+     * @return mixed
+     */
+    public static function __callStatic($name, $arguments = array())
+    {
+        if (count($arguments) > 0) {
+            return null;
+        }
+
+        self::parseCases();
+
+        $search = array_search($name, self::$cases);
+
+        if (false === $search) {
+            return null;
+        }
+
+        return $search;
+    }
+
+    /**
+     * Return the case name from the value
+     *
+     * @param  int|string $value
+     * @return bool|float|int|string|null
+     */
+    public static function from($value)
+    {
+        self::parseCases();
+
+        if (!array_key_exists($value, self::$cases)) {
+            return null;
+        }
+
+        return self::$cases[$value];
+    }
+
+    /**
+     * Return the list of cases as name => value
+     *
+     * @return array<array-key, bool|float|int|string|null>
+     */
+    public static function cases()
+    {
+        self::parseCases();
+
+        return self::$cases;
+    }
+
+    /**
+     * Extract cases from "method" annotations
+     *
+     * @return void
+     */
+    private static function parseCases()
+    {
+        $class = new ReflectionClass(get_called_class());
+        $comment = $class->getDocComment();
+        if (false === $comment) {
+            return;
+        }
+
+        self::$cases = array();
+        $lines = explode("\n", $comment);
+        foreach ($lines as $line) {
+            // @phpstan-ignore argument.sscanf
+            if (5 === sscanf($line, "%*[^@]@method %s %s %s %[^\n]s", $type, $name, $type, $value)) {
+                $key = json_decode((string)$value);
+                if (is_string($key) || is_numeric($key)) {
+                    self::$cases[$key] = $name;
+                }
+            // @phpstan-ignore argument.sscanf
+            } elseif (2 === sscanf($line, "%*[^@]@method int %[^\n]s", $name)) {
+                array_push(self::$cases, $name);
+            }
+        }
+    }
+}
+
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
 /**
  * Helper class to generate form fields based on
  * Template engine and _form.tbs.html template
  */
 class KoncertoField
 {
-    /** @var ?KoncertoForm */
+    /**
+     * @var ?KoncertoForm
+     */
     private $form = null;
-    /** @var ?string */
+    /**
+     * @var ?string
+     */
     private $name = null;
-    /** @var string */
+    /**
+     * @var string
+     */
     private $type = 'text';
-    /** @var ?string */
+    /**
+     * @var ?string
+     */
     private $label = null;
-    /** @var array<array-key, string> */
+    /**
+     * @var array<array-key, string>
+     */
     private $options = array();
 
     /**
-     * @param KoncertoForm $form
+     * @param  KoncertoForm $form
      * @return KoncertoField
      */
-    public function setForm($form) {
+    public function setForm($form)
+    {
         $this->form = $form;
 
         return $this;
     }
 
     /**
-     * @return KoncertoForm
+     * @return ?KoncertoForm
      */
-    public function getForm() {
+    public function getForm()
+    {
         return $this->form;
     }
 
     /**
-     * @param ?string $key
+     * @param  ?string $key
      * @return mixed
      */
-    public function getData($key = null) {
+    public function getData($key = null)
+    {
+        if (null === $this->form || null === $this->name) {
+            return null;
+        }
+
         $data = $this->form->getData();
         if (null === $data) {
             return null;
         }
 
-        if (is_a($data, 'KoncertoEntity')) {
+        if (!is_array($data)) {
             $data = $data->serialize();
         }
 
@@ -436,10 +605,11 @@ class KoncertoField
     }
 
     /**
-     * @param string $type
+     * @param  string $name
      * @return KoncertoField
      */
-    public function setName($name) {
+    public function setName($name)
+    {
         if ('name' === $name) {
             throw new Exception(sprintf('KoncertoField::setName(%s) - "%s" is a reserved keyword', $name, $name));
         }
@@ -450,17 +620,19 @@ class KoncertoField
     }
 
     /**
-     * @return string
+     * @return ?string
      */
-    public function getName() {
+    public function getName()
+    {
         return $this->name;
     }
 
     /**
-     * @param string $type
+     * @param  string $type
      * @return KoncertoField
      */
-    public function setType($type) {
+    public function setType($type)
+    {
         $this->type = $type;
 
         return $this;
@@ -469,15 +641,17 @@ class KoncertoField
     /**
      * @return string
      */
-    public function getType() {
+    public function getType()
+    {
         return $this->type;
     }
 
     /**
-     * @param string $label
+     * @param  string $label
      * @return KoncertoField
      */
-    public function setLabel($label) {
+    public function setLabel($label)
+    {
         $this->label = $label;
 
         return $this;
@@ -486,19 +660,17 @@ class KoncertoField
     /**
      * @return ?string
      */
-    public function getLabel() {
+    public function getLabel()
+    {
         return $this->label;
     }
 
-    public function getFormName() {
-        return 'form';
-    }
-
     /**
-     * @param array<array-key, string> $options
+     * @param  array<array-key, string> $options
      * @return KoncertoField
      */
-    public function setOptions($options) {
+    public function setOptions($options)
+    {
         $this->options = $options;
 
         return $this;
@@ -507,11 +679,14 @@ class KoncertoField
     /**
      * @return array<array-key, string>
      */
-    public function getOptions() {
+    public function getOptions()
+    {
         return $this->options;
     }
 }
 
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
 
 /**
  * Helper class to generate and submit forms
@@ -519,17 +694,22 @@ class KoncertoField
  */
 class KoncertoForm
 {
-    /** @var KoncertoField[] */
+    /**
+     * @var KoncertoField[]
+     */
     private $fields = array();
 
-    /** @var array<string, mixed> */
+    /**
+     * @var array<string, bool|float|int|string|null|array<array-key, bool|float|int|string|null>>
+     */
     private $options = array();
 
     /**
-     * @param KoncertoField $field
+     * @param  KoncertoField $field
      * @return KoncertoForm
      */
-    public function add($field) {
+    public function add($field)
+    {
         array_push($this->fields, $field);
         $field->setForm($this);
 
@@ -539,16 +719,18 @@ class KoncertoForm
     /**
      * @return KoncertoField[]
      */
-    public function getFields() {
+    public function getFields()
+    {
         return $this->fields;
     }
 
     /**
-     * @param string $optionName
-     * @param ?mixed $optionValue
+     * @param  string $optionName
+     * @param  bool|float|int|string|null|array<array-key, bool|float|int|string|null> $optionValue
      * @return KoncertoForm
      */
-    public function setOption($optionName, $optionValue = null) {
+    public function setOption($optionName, $optionValue = null)
+    {
         $optionName = strtolower(($optionName));
 
         if (null === $optionValue && array_key_exists($optionName, $this->options)) {
@@ -559,7 +741,7 @@ class KoncertoForm
 
         $this->options[$optionName] = $optionValue;
 
-        if ('data' === $optionName) {
+        if ('data' === $optionName && is_array($optionValue)) {
             $request = new KoncertoRequest();
             foreach ($optionValue as $key => $val) {
                 $request->set($key, $val);
@@ -572,29 +754,32 @@ class KoncertoForm
     /**
      * @return array<string, mixed>
      */
-    public function getOptions() {
+    public function getOptions()
+    {
         return $this->options;
     }
 
     /**
      * @return string
      */
-    public function getName() {
+    public function getName()
+    {
         $name = 'form';
-        if (array_key_exists('name', $this->options)) {
+        if (array_key_exists('name', $this->options) && !is_array($this->options['name'])) {
             $name = $this->options['name'];
         }
 
-        return $name;
+        return (string)$name;
     }
 
     /**
      * @return bool
      */
-    public function isSubmitted() {
+    public function isSubmitted()
+    {
         $request = new KoncertoRequest();
         $class = 'form';
-        if (array_key_exists('class', $this->options)) {
+        if (array_key_exists('class', $this->options) && is_string($this->options['class'])) {
             $class = strtolower($this->options['class']);
         }
         $form = $request->get($class);
@@ -603,12 +788,13 @@ class KoncertoForm
     }
 
     /**
-     * @return mixed
+     * @return KoncertoEntity|array<string, bool|float|int|string|null>|null
      */
-    public function getData() {
+    public function getData()
+    {
         $request = new KoncertoRequest();
         $class = 'form';
-        if (array_key_exists('class', $this->options)) {
+        if (array_key_exists('class', $this->options) && is_string($this->options['class'])) {
             $class = strtolower($this->options['class']);
         }
 
@@ -629,8 +815,9 @@ class KoncertoForm
     /**
      * @return ?KoncertoEntity
      */
-    private function getEntity() {
-        if (!array_key_exists('class', $this->options)) {
+    private function getEntity()
+    {
+        if (!array_key_exists('class', $this->options) || !is_string($this->options['class'])) {
             return null;
         }
 
@@ -640,7 +827,7 @@ class KoncertoForm
             return null;
         }
 
-        include_once($classFile);
+        include_once $classFile;
         if (!class_exists($class)) {
             return null;
         }
@@ -655,6 +842,8 @@ class KoncertoForm
 }
 
 
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
 /**
  * Helper class to parse request
  */
@@ -663,7 +852,8 @@ class KoncertoRequest
     /**
      * @return string
      */
-    public function getPathInfo() {
+    public function getPathInfo()
+    {
         if (array_key_exists('PATH_INFO', $_SERVER)) {
             return $_SERVER['PATH_INFO'];
         }
@@ -672,45 +862,68 @@ class KoncertoRequest
     }
 
     /**
-     * @param string $argName
-     * @return mixed
+     * @param  string $argName
+     * @return bool|float|int|string|null|array<array-key, bool|float|int|string|null>
      */
-    public function get($argName) {
+    public function get($argName)
+    {
         if (!array_key_exists($argName, $_REQUEST)) {
             return null;
         }
 
-        return $_REQUEST[$argName];
+        $value = $_REQUEST[$argName];
+        if (is_array($value)) {
+            foreach ($value as $k => $v) {
+                if (!is_string($v) && !is_numeric($v) && !is_bool($v)) {
+                    $v = null;
+                }
+                $value[$k] = (string)$v;
+            }
+        } else {
+            if (!is_string($value) && !is_numeric($value) && !is_bool($value)) {
+                $value = null;
+            }
+        }
+
+        return $value;
     }
 
     /**
-     * @param string $argName
-     * @param mixed $argValue
+     * @param  string $argName
+     * @param  mixed  $argValue
      * @return void
      */
-    public function set($argName, $argValue) {
+    public function set($argName, $argValue)
+    {
         $_REQUEST[$argName] = $argValue;
     }
 }
 
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
 
 /**
  * Helper class to prepare response
  */
 class KoncertoResponse
 {
-    /** @var array<string, string> */
+    /**
+     * @var array<string, string>
+     */
     private $headers = array();
 
-    /** @var ?string */
+    /**
+     * @var ?string
+     */
     private $content = null;
 
     /**
-     * @param string $headerName
-     * @param ?string $headerValue
+     * @param  string  $headerName
+     * @param  ?string $headerValue
      * @return KoncertoResponse
      */
-    public function setHeader($headerName, $headerValue = null) {
+    public function setHeader($headerName, $headerValue = null)
+    {
         $headerName = strtolower(($headerName));
 
         if (null === $headerValue && array_key_exists($headerName, $this->headers)) {
@@ -719,7 +932,7 @@ class KoncertoResponse
             return $this;
         }
 
-        $this->headers[$headerName] = $headerValue;
+        $this->headers[$headerName] = (string)$headerValue;
 
         return $this;
     }
@@ -727,15 +940,17 @@ class KoncertoResponse
     /**
      * @return array<string, string>
      */
-    public function getHeaders() {
+    public function getHeaders()
+    {
         return $this->headers;
     }
 
     /**
-     * @param ?string $content
+     * @param  ?string $content
      * @return KoncertoResponse
      */
-    public function setContent($content) {
+    public function setContent($content)
+    {
         $this->content = $content;
 
         return $this;
@@ -744,11 +959,14 @@ class KoncertoResponse
     /**
      * @return string
      */
-    public function getContent() {
-        return $this->content;
+    public function getContent()
+    {
+        return (string)$this->content;
     }
 }
 
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
 
 /**
  * Routing class
@@ -757,15 +975,19 @@ class KoncertoResponse
  */
 class KoncertoRouter
 {
-    /** @var array<string, string> */
+    /**
+     * @var array<string, string>
+     */
     private $routes = array();
 
     /**
      * Returns KoncertoController::action for the specified url (pathInfo)
-     * @param string url
+     *
+     * @param  string $url
      * @return ?string
      */
-    public function match($url) {
+    public function match($url)
+    {
         $this->getRoutes($url);
 
         if (array_key_exists($url, $this->routes)) {
@@ -776,10 +998,11 @@ class KoncertoRouter
     }
 
     /**
-     * @param $url
+     * @param string $url
      * @return void
      */
-    private function getRoutes($url) {
+    private function getRoutes($url)
+    {
         if (!is_dir('_cache')) {
             mkdir('_cache');
         }
@@ -796,10 +1019,15 @@ class KoncertoRouter
         if (!is_dir($d)) {
             mkdir($d);
         }
+
         $dir = opendir($d);
+        if (false === $dir) {
+            return;
+        }
+
         while ($f = readdir($dir)) {
             if (is_file($d . $f) && '.php' === strrchr($f, '.')) {
-                include_once($d . $f);
+                include_once $d . $f;
                 $className = str_replace('.php', '', $f);
                 if (class_exists($className)) {
                     if (is_subclass_of($className, 'KoncertoController')) {
@@ -816,11 +1044,14 @@ class KoncertoRouter
     }
 
     /**
-     * @param string $className
+     * @param  class-string $className
      * @return array<string, string>
      */
-    private function getControllerRoutes($className) {
-        /** @var array<string, string> */
+    private function getControllerRoutes($className)
+    {
+        /**
+          * @var array<string, string>
+          */
         $routes = array();
         $methods = (new ReflectionClass($className))->getMethods(ReflectionMethod::IS_PUBLIC);
         foreach ($methods as $method) {
@@ -845,13 +1076,15 @@ class KoncertoRouter
     }
 
     /**
-     * @param string $comment
+     * @param  string $comment
      * @return ?string
      */
-    public function getControllerRoute($comment) {
+    public function getControllerRoute($comment)
+    {
         $lines = explode("\n", $comment);
         foreach ($lines as $line) {
             $line = trim($line);
+            // @phpstan-ignore argument.sscanf
             if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
                 $internal = (array)json_decode((string)$json, true);
                 if (!array_key_exists('route', $internal)) {
