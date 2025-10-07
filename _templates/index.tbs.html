@@ -39,7 +39,58 @@
                         value: '',
                         language: 'php'
                     });
+
+                    function getPhpCompletionProvider(monaco) {
+                        var comments = ['internal', 'param', 'return'];
+                        return {
+                            triggerCharacters: ['@', ' ', '{'],
+                            provideCompletionItems: function (model, position) {
+                                var text = model.getValueInRange({startLineNumber: 1, startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column});
+                                var suggestions = [];
+                                var keyword = text.split(' ').pop();
+                                comments.forEach(function (comment) {
+                                    if ('' !== keyword.trim() && `@${comment}`.startsWith(keyword)) {
+                                        suggestions.push({
+                                            label: `@${comment}`,
+                                            filterText: comment,
+                                            kind: monaco.languages.CompletionItemKind.Keyword,
+                                            insertText: comment
+                                        });
+                                    }
+                                });
+                                suggestions.push({
+                                    label: '{"route"}',
+                                    filterText: '{"route"',
+                                    kind: monaco.languages.CompletionItemKind.Keyword,
+                                    insertText: '{"route": {"name": "${1}"}}',
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                                });
+                                suggestions.push({
+                                    label: 'KoncertoReponse',
+                                    kind: monaco.languages.CompletionItemKind.Class,
+                                    insertText: 'KoncertoResponse'
+                                });
+                                if (text.endsWith(' extends')) {
+                                    suggestions.push({
+                                        label: 'KoncertoController',
+                                        filterText: ' extends',
+                                        kind: monaco.languages.CompletionItemKind.Class,
+                                        insertText: 'extends KoncertoController\n{\n\t${1}\n}',
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                                    });
+                                }
+                                if (suggestions.length > 0) {
+                                    console.debug(suggestions);
+                                }
+                                return { suggestions };
+                            }
+                        };
+                    }
+
+                    monaco.languages.registerCompletionItemProvider('php', getPhpCompletionProvider(monaco));
+
                 });
+
                 document.querySelectorAll('.navbar-dropdown a').forEach(function (a) {
                     a.addEventListener('click', function() {
                         a.parentNode.style.display = 'none';

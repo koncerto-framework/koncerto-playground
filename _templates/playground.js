@@ -14,8 +14,10 @@ window.newProject = function() {
     newDirectory('_templates');
     window.currentProject = projectName;
 }
-window.openProject = function() {
-    var projectName = prompt('Project name');
+window.openProject = function(projectName) {
+    if (undefined === projectName) {
+        projectName = prompt('Project name');
+    }
     if ('' === (projectName ?? '').trim()) {
         return;
     }
@@ -101,6 +103,7 @@ window.loadFile = function (path) {
     if (null === el) {
         el = document.querySelector(`[data-file="${path}"]`);
     }
+    window.saveFile();
     path = `projects/${window.currentProject}/${path}`;
     if (path in localStorage) {
         window.editor.setValue(localStorage.getItem(path));
@@ -115,6 +118,9 @@ window.loadFile = function (path) {
     }
 }
 window.saveFile = function() {
+    if ('' === window.currentFile) {
+        return;
+    }
     localStorage.setItem(window.currentFile, window.editor.getValue());
 }
 window.addEventListener('resize', function(event) {
@@ -126,5 +132,11 @@ window.addEventListener('resize', function(event) {
     });
 });
 window.run = function() {
-    window.open(`run.html#/${window.currentProject}`);
+    window.open(`run.html?/#/${window.currentProject}`);
 }
+setTimeout(function() {
+    var path = location.hash.substring(1);
+    if (path.startsWith('/')) {
+        window.openProject(path.substring(1));
+    }
+}, 2000);

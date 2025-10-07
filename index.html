@@ -28,7 +28,6 @@
             script.innerText = `<?php
 
                 $storage = array(
-                    '_cache' => array(),
                     '_controller' => array(
                         'PlaygroundController.php'
                     ),
@@ -55,7 +54,7 @@
                     }
                 }
 
-                $d = 'project/';
+                $d = 'projects/';
                 if (!is_dir($d)) {
                     mkdir($d);
                 }
@@ -63,11 +62,16 @@
                 $localStorage = json_decode(rawurldecode("${encodeURIComponent(JSON.stringify(localStorage))}"), true);
 
                 foreach ($localStorage as $path => $content) {
-                    list ($dir, $file) = explode('/', $path);
-                    if (!is_dir($d . $dir)) {
-                        mkdir($d . $dir);
+                    if ('.' !== substr($path, 0, 1)) {
+                        list (, $project, $dir, $file) = explode('/', $path);
+                        if (!is_dir($d . $project)) {
+                            mkdir($d . $project);
+                        }
+                        if (!is_dir($d . $project . '/' . $dir)) {
+                            mkdir($d . $project . '/' . $dir);
+                        }
+                        file_put_contents($path, $content);
                     }
-                    file_put_contents($d . $path, $content);
                 }
 
                 require_once('/preload/koncerto.php');
