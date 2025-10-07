@@ -102,6 +102,11 @@
                                     observer.disconnect();
                                     eval(script.text);
                                 }, 1000);
+                            } else {
+                                if (script.hasAttribute('data-reload')) {
+                                    observer.disconnect();
+                                    eval(script.text);
+                                }
                             }
                         }
                     });

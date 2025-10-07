@@ -50,6 +50,43 @@
 
                 echo Koncerto::response();
             `;
+
+            window.reloadScript = function(selector) {
+                document.querySelector(selector);
+                eval(selector.text);
+            }
+
+            var targetNode = document.querySelector(':root');
+            var config = { childList: true, subtree: true };
+            var callback = function(mutationList, observer) {
+                Array.from(mutationList).forEach(function(mutation) {
+                    var scripts = mutation.target.querySelectorAll('script');
+                    scripts.forEach(function (script) {
+                        if ('' !== script.src && script.hasAttribute('data-reload')) {
+                            fetch(script.src).then(function (result) {
+                                result.text().then(function (js) {
+                                    eval(js);
+                                    if (script.hasAttribute('onload')) {
+                                        eval(script.getAttribute('onload'));
+                                    }
+                                })
+                            });
+                        }
+                        if ('' === script.src) {
+                            if (-1 !== script.text.indexOf('//' + ' require is provided by loader.min.js.')) {
+                                setTimeout(function() {
+                                    observer.disconnect();
+                                    eval(script.text);
+                                }, 1000);
+                            }
+                        }
+                    });
+                });
+            };
+
+            var observer = new MutationObserver(callback);
+            observer.observe(targetNode, config);
+
             var head = document.getElementsByTagName('head')[0];
             head.appendChild(script);
         </script>

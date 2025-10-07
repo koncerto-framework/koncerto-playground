@@ -25,7 +25,10 @@ class PlaygroundController extends KoncertoController
         return $this->render('_templates/index.tbs.html', array(
             'title' => 'Welcome',
             'files' => $files,
-            'playgroundScript' => file_get_contents('_templates/playground.js')
+            'playgroundScript' => sprintf(
+                '<script data-reload type="text/javascript">%s</script>',
+                file_get_contents('_templates/playground.js')
+            )
         ));
     }
 }
