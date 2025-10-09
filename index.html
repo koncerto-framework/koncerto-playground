@@ -6,7 +6,7 @@
         <script type="text/javascript">
 
             function proxy(url) {
-                return `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+                return `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
             }
 
             var files = [
@@ -46,7 +46,7 @@
                         file_put_contents(
                             sprintf('%s/%s', $dir, $file),
                             file_get_contents(sprintf(
-                                'https://corsproxy.io/?url=https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/%s/%s',
+                                'https://api.codetabs.com/v1/proxy?quest=https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/%s/%s',
                                 $dir,
                                 $file
                             ))
