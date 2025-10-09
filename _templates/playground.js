@@ -9,7 +9,6 @@ window.newProject = function() {
     document.querySelector('.panel-heading').innerText = projectName;
     var menu = document.querySelector('.menu');
     menu.innerHTML = '';
-    newDirectory('_cache');
     newDirectory('_controller');
     newDirectory('_templates');
     window.currentProject = projectName;
@@ -24,7 +23,6 @@ window.openProject = function(projectName) {
     document.querySelector('.panel-heading').innerText = projectName;
     var menu = document.querySelector('.menu');
     menu.innerHTML = '';
-    newDirectory('_cache');
     newDirectory('_controller');
     newDirectory('_templates');
     window.currentProject = projectName;
