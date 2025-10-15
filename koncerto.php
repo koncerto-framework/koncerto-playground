@@ -208,18 +208,34 @@ class KoncertoController
             $response->setHeader($headerName, $headerValue);
         }
 
-        return $response->setContent($tbs->Show(false));
+        $tbs->Show(TBS_NOTHING);
+
+        return $response->setContent($tbs->Source);
     }
 
     /**
-     * @param  array<array-key, mixed> $data
+     * @param array<array-key, mixed> $data
+     * @param array<string, mixed> $options
      * @return KoncertoResponse
      */
-    public function json($data)
+    public function json($data, $options = array())
     {
-        return (new KoncertoResponse())
-            ->setHeader('Content-type', 'application/json')
-            ->setContent((string)json_encode($data));
+        $json = (string)json_encode($data);
+        if (array_key_exists('pretty', $options) && is_bool($options['pretty']) && true === $options['pretty']) {
+            $json = (string)json_encode($data, JSON_PRETTY_PRINT);
+        }
+
+        $response = (new KoncertoResponse())->setHeader('Content-type', 'application/json');
+
+        if (array_key_exists('headers', $options) && is_array($options['headers'])) {
+            foreach ($options['headers'] as $headerName => $headerValue) {
+                if (is_string($headerValue) || is_numeric($headerValue) || is_bool($headerValue)) {
+                    $response->setHeader($headerName, (string)$headerValue);
+                }
+            }
+        }
+
+        return $response->setContent($json);
     }
 
     /**
@@ -645,13 +661,15 @@ class KoncertoEnum
         $lines = explode("\n", $comment);
         foreach ($lines as $line) {
             // @phpstan-ignore argument.sscanf
-            if (5 === sscanf($line, "%*[^@]@method %s %s %[^\n]s", $type, $name, $value)) {
+            if (4 === sscanf($line, "%*[^@]@method %s %s %[^\n]s", $type, $name, $value)) {
+                $name = preg_replace('/[^A-Za-z0-9]/', '', strval($name));
                 $key = json_decode((string)$value);
                 if (is_string($key) || is_numeric($key)) {
                     self::$cases[$key] = $name;
                 }
             // @phpstan-ignore argument.sscanf
             } elseif (2 === sscanf($line, "%*[^@]@method int %[^\n]s", $name)) {
+                $name = preg_replace('/[^A-Za-z0-9]/', '', strval($name));
                 array_push(self::$cases, $name);
             }
         }
@@ -660,19 +678,6 @@ class KoncertoEnum
 
 
 // phpcs:disable PSR1.Classes.ClassDeclaration
-
-/**
- * Field type enumeration (hidden, text, etc)
- *
- * @method string Hidden() "hidden"
- * @method string Text() "text"
- * @method string Email() "email"
- * @method string Textarea() "textarea"
- * @method string Select() "select"
- */
-class KoncertoFieldType extends KoncertoEnum
-{
-}
 
 /**
  * Helper class to generate form fields based on
@@ -835,6 +840,22 @@ class KoncertoField
 // phpcs:disable PSR1.Classes.ClassDeclaration
 
 /**
+ * Field type enumeration (hidden, text, etc)
+ *
+ * @method string Hidden() "hidden"
+ * @method string Text() "text"
+ * @method string Email() "email"
+ * @method string Textarea() "textarea"
+ * @method string Select() "select"
+ */
+class KoncertoFieldType extends KoncertoEnum
+{
+}
+
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
+/**
  * Helper class to generate and submit forms
  * Requires template engine and _form.tbs.html template
  */
@@ -986,6 +1007,192 @@ class KoncertoForm
         }
 
         return $entity;
+    }
+}
+
+
+// phpcs:disable PSR1.Classes.ClassDeclaration
+
+/**
+ * KoncertoLive class to implement a JavaScript bridge
+ * based on Impulsus actions and frames
+ */
+class KoncertoLive extends KoncertoController
+{
+    public function __construct()
+    {
+        $this->live();
+    }
+
+    /**
+     * Get/set data from controller's live properties to Impulsus and back
+     *
+     * @internal {"route": {"name": "/_live"}}
+     * @return KoncertoResponse
+     */
+    public function live()
+    {
+        $props = $this->getLiveProps();
+
+        $request = new KoncertoRequest();
+
+        $obj = array();
+        foreach ($props as $propName => $prop) {
+            if (is_array($prop) && array_key_exists('writable', $prop) && true === $prop['writable']) {
+                $update = $request->get($propName);
+                if (null !== $update) {
+                    $this->$propName = $update;
+                }
+                $obj[$propName] = $this->$propName;
+            }
+        }
+
+        return $this->json($obj, array('pretty' => true));
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function render($template, $context = array(), $headers = array())
+    {
+        $response = parent::render($template, $context, $headers);
+
+        $content = $response->getContent();
+
+        $props = json_encode($this->getLiveProps());
+
+        $controller = <<<JS
+                    KoncertoImpulsus.controllers['live'] = function(controller) {
+                        function liveProps() {
+                            return {$props};
+                        }
+                        function liveUpdate(element) {
+                            var update = '';
+                            var props = liveProps();
+                            for (var propName in props) {
+                                var prop = props[propName];
+                                if (prop.writable) {
+                                    var target = element.targets['$' + propName];
+                                    var value = target.innerText;
+                                    var tagName = new String(target.tagName).toLowerCase();
+                                    if ('input' === tagName) {
+                                        value = target.value;
+                                        if ('checkbox' === target.type) {
+                                            value = target.checked ? target.value : '';
+                                        }
+                                    }
+                                    update += '&' + encodeURIComponent(propName) + '=' + encodeURIComponent(value);
+                                }
+                            }
+
+                            return update;
+                        }
+                        controller.on('$' + 'render',  function(element) {
+                            KoncertoImpulsus.fetch('_live?' + liveUpdate(element), false, function(response) {
+                                var json = JSON.parse(response.responseText);
+                                var props = liveProps();
+                                for (var propName in props) {
+                                    var prop = props[propName];
+                                    if (propName in json) {
+                                        // @todo - support different target type (text, input, etc)
+                                        var target = element.targets['$' + propName];
+                                        var tagName = new String(target.tagName).toLowerCase();
+                                        if ('input' === tagName) {
+                                            if ('checkbox' === target.type) {
+                                                target.checked = target.value === json[propName];
+                                                return;
+                                            }
+                                            target.value = json[propName];
+                                            return;
+                                        }
+                                        if ('select' === tagName) {
+                                            for (var i = 0; i < target.options.length; i++) {
+                                                if (json[prop] === target.options[i].value) {
+                                                    target.options.selectedIndex = i;
+                                                    break;
+                                                }
+                                            }
+                                            return;
+                                        }
+                                        target.innerText = json[propName];
+                                    }
+                                }
+                            });
+                        });
+                    }
+
+                    window.addEventListener('load', function() {
+                        setTimeout(function() {
+                            document.querySelector(':root').setAttribute('data-controller', 'live');
+                            document.querySelectorAll('[data-model]').forEach(function(model) {
+                                model.setAttribute('data-target', '$' + model.getAttribute('data-model'));
+                            });
+                            var props = {$props};
+                            for (var propName in props) {
+                                var prop = props[propName];
+                                console.debug(propName, prop);
+                            }
+                        }, 100);
+                    });
+JS;
+
+        $impulsus = '';
+        if (is_file('impulsus.js')) {
+            $impulsus = 'impulsus.js';
+        }
+        if (is_file('src/KoncertoImpulsus.js')) {
+            $impulsus = 'src/KoncertoImpulsus.js';
+        }
+        if (is_file('../koncerto-impulsus/src/KoncertoImpulsus.js')) {
+            $impulsus = '../koncerto-impulsus/src/KoncertoImpulsus.js';
+        }
+        if ('' === $impulsus) {
+            throw new Exception('Impulsus framework not found');
+        }
+
+        $content = str_replace('</head>', <<<HTML
+                <script src="{$impulsus}"></script>
+                <script type="text/javascript">
+                    {$controller}
+                </script>
+            </head>
+HTML, $content);
+
+        return $response->setContent($content);
+    }
+
+    /**
+     * Get live props from class internal comments
+     *
+     * @return array<string, mixed>
+     */
+    private function getLiveProps()
+    {
+        $props = array();
+
+        $class = new ReflectionClass(get_called_class());
+        $properties = $class->getProperties(ReflectionProperty::IS_PUBLIC);
+        foreach ($properties as $property) {
+            $comment = $property->getDocComment();
+            if (false === $comment) {
+                continue;
+            }
+
+            $lines = explode("\n", $comment);
+            foreach ($lines as $line) {
+                // @phpstan-ignore argument.sscanf
+                if (1 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
+                    $internal = (array)json_decode((string)$json, true);
+                    if (array_key_exists('live', $internal) && is_array($internal['live'])) {
+                        if (array_key_exists('prop', $internal['live'])) {
+                            $props[$property->getName()] = $internal['live']['prop'];
+                        }
+                    }
+                }
+            }
+        }
+
+        return $props;
     }
 }
 

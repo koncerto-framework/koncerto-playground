@@ -1,3 +1,6 @@
 [submodule "koncerto-framework"]
 	path = koncerto-framework
 	url = https://github.com/koncerto-framework/koncerto-framework
+[submodule "koncerto-impulsus"]
+	path = koncerto-impulsus
+	url = https://github.com/koncerto-framework/koncerto-impulsus
