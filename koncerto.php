@@ -87,9 +87,13 @@ class Koncerto
     {
         $request = new KoncertoRequest();
         $router = new KoncertoRouter();
-        $match = $router->match($request->getPathInfo());
+        $pathInfo = $request->getPathInfo();
+        $match = $router->match($pathInfo);
+        if (null === $match && '.php' !== strrchr($pathInfo, '.') && is_file('.' . $pathInfo)) {
+            return file_get_contents('.' . $pathInfo);
+        }
         if (null === $match) {
-            throw new Exception(sprintf('No match for route %s', $request->getPathInfo()));
+            throw new Exception(sprintf('No match for route %s', $pathInfo));
         }
         list($controller, $action) = explode('::', $match);
         $response = (new $controller())->$action();
@@ -1136,23 +1140,26 @@ class KoncertoLive extends KoncertoController
                     });
 JS;
 
-        $impulsus = '';
-        if (is_file('impulsus.js')) {
-            $impulsus = 'impulsus.js';
-        }
-        if (is_file('src/KoncertoImpulsus.js')) {
-            $impulsus = 'src/KoncertoImpulsus.js';
-        }
-        if (is_file('../koncerto-impulsus/src/KoncertoImpulsus.js')) {
-            $impulsus = '../koncerto-impulsus/src/KoncertoImpulsus.js';
-        }
+        $impulsusLocations = array(
+            '/impulsus.js',
+            '/src/KoncertoImpulsus.js',
+            '/koncerto-impulsus/src/KoncertoImpulsus.js',
+            '/../koncerto-impulsus/src/KoncertoImpulsus.js'
+        );
+
+        $impulsusValidLocations = array_filter($impulsusLocations, function ($impulsusLocation) {
+            return is_file(dirname(__FILE__) . $impulsusLocation);
+        });
+
+        $impulsus = array_shift($impulsusValidLocations);
+
         if ('' === $impulsus) {
             throw new Exception('Impulsus framework not found');
         }
 
         $content = str_replace('</head>', <<<HTML
-                <script src="{$impulsus}"></script>
-                <script type="text/javascript">
+                <script data-reload onload="if (window.reloadScript) reloadScript('#live-controller-script')" src="{$impulsus}"></script>
+                <script id="live-controller-script" type="text/javascript">
                     {$controller}
                 </script>
             </head>
@@ -1211,6 +1218,10 @@ class KoncertoRequest
     {
         if (array_key_exists('PATH_INFO', $_SERVER)) {
             return $_SERVER['PATH_INFO'];
+        }
+
+        if (array_key_exists('REQUEST_URI', $_SERVER)) {
+            return $_SERVER['REQUEST_URI'];
         }
 
         return '/';
