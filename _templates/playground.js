@@ -1,18 +1,3 @@
-window.currentProject = '';
-window.currentDirectory = '';
-window.currentFile = '';
-window.newProject = function() {
-    var projectName = prompt('Project name');
-    if ('' === (projectName ?? '').trim()) {
-        return;
-    }
-    document.querySelector('.panel-heading').innerText = projectName;
-    var menu = document.querySelector('.menu');
-    menu.innerHTML = '';
-    newDirectory('_controller');
-    newDirectory('_templates');
-    window.currentProject = projectName;
-}
 window.openProject = function(projectName) {
     if (undefined === projectName) {
         projectName = prompt('Project name');

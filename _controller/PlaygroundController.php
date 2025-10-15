@@ -1,6 +1,6 @@
 <?php
 
-class PlaygroundController extends KoncertoController
+class PlaygroundController extends KoncertoLive
 {
     /**
      * @internal { "route": {"name": "/"} }

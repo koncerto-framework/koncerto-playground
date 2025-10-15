@@ -19,8 +19,8 @@
                         <span><strong>k</strong>oncerto</span>
                     </a>
 
-                    <a role="button" class="navbar-burger has-text-white" aria-label="menu" aria-expanded="false" data-target="#menu"
-                    onclick="document.querySelector(this.getAttribute('data-target')).classList.toggle('is-active');">
+                    <a role="button" class="navbar-burger has-text-white" aria-label="menu" aria-expanded="false"
+                    data-action="click->playground#burger">
                         <span aria-hidden="true"></span>
                         <span aria-hidden="true"></span>
                         <span aria-hidden="true"></span>
@@ -28,7 +28,7 @@
                     </a>
                 </div>
 
-                <div id="menu" class="navbar-menu">
+                <div data-target="menu" id="menu" class="navbar-menu">
                     <div class="navbar-start">
                         <div class="navbar-item has-dropdown is-hoverable">
                             <a class="navbar-link">
@@ -36,7 +36,7 @@
                             </a>
 
                             <div class="navbar-dropdown">
-                                <a href="javascript:;" onclick="window.newProject()" class="navbar-item">
+                                <a data-action="click->playground#newProject" class="navbar-item">
                                     New project
                                 </a>
                                 <a href="javascript:;" onclick="window.openProject()" class="navbar-item">

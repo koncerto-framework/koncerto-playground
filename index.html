@@ -16,6 +16,11 @@
                     url : proxy('https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/koncerto.php')
                 },
                 {
+                    name: 'impulsus.js',
+                    parent: '/preload/',
+                    url : proxy('https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/impulsus.js')
+                },
+                {
                     name: 'tbs_class.php',
                     parent: '/preload/',
                     url : proxy('https://github.com/Skrol29/tinybutstrong/raw/refs/heads/master/tbs_class.php')
@@ -29,7 +34,8 @@
 
                 $storage = array(
                     '_controller' => array(
-                        'PlaygroundController.php'
+                        'PlaygroundController.php',
+                        'playground.js'
                     ),
                     '_templates' => array(
                         '_layout.tbs.html',
