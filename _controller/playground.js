@@ -6,10 +6,7 @@ return function(controller) {
     window.currentDirectory = '';
     window.currentFile = '';
 
-    console.debug(controller);
-
     controller.on('burger', function (controller) {
-        console.debug(controller);
         controller.targets.menu.classList.toggle('is-active');
     });
 
