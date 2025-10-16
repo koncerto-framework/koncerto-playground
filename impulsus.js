@@ -27,7 +27,7 @@ function KoncertoController(element)
         var parts = currentPath.split('/');
         if ('' !== parts[parts.length - 1]) {
             parts.pop();
-            currentPath = parts.join('/') + '/';
+            currentPath = parts.length > 0 ? parts.join('/') : '';
         }
         if (!currentPath.endsWith('/_controller/')) {
             currentPath += '/_controller/';
@@ -35,6 +35,16 @@ function KoncertoController(element)
         KoncertoImpulsus.fetch(currentPath + controllerName + '.js', {
             source: element
         }, function(response, source) {
+            if (404 === response.status) {
+                KoncertoImpulsus.fetch(element.getAttribute('data-proxy') + controllerName + '.js', {
+                    source: element
+                }, function(response, source) {
+                    source.controller.default = eval('(function(controller) { ' + response.responseText + ' });')(source.controller);
+                    KoncertoImpulsus.controllers[controllerName] = source.controller.default;
+                    source.controller.default(source.controller);
+                });
+                return;
+            }
             source.controller.default = eval('(function(controller) { ' + response.responseText + ' });')(source.controller);
             KoncertoImpulsus.controllers[controllerName] = source.controller.default;
             source.controller.default(source.controller);
@@ -79,7 +89,7 @@ function KoncertoController(element)
             controller = 1 === parts.length ? parts[0] : parts[1];
             var action = 1 === parts.length ? 'click' : parts[0];
             element.addEventListener(action, function(event) {
-                var el = event.target.hasAttribute('data-action') ? event.target : event.target.closes('[data-action]');
+                var el = event.target.hasAttribute('data-action') ? event.target : event.target.closest('[data-action]');
                 var parts = new String(el.getAttribute('data-action')).split('#');
                 var controller = parts[0];
                 var method = 1 === parts.length ? 'default' : parts[1];
@@ -123,6 +133,9 @@ function KoncertoFrame(section)
 
     var links = document.querySelectorAll('a[href]');
     links.forEach(function (link) {
+        if (link.href.startsWith('http:') || link.href.startsWith('https:')) {
+            return;
+        }
         if (!link.hasAttribute('data-frame')) {
             link.setAttribute('data-frame', frame.id);
         }
