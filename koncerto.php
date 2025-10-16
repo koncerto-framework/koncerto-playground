@@ -1223,6 +1223,10 @@ class KoncertoRequest
             return $_SERVER['REQUEST_URI'];
         }
 
+        if ('true' === Koncerto::getConfig('routing.useHash')) {
+            return Koncerto::getConfig('request.pathInfo');
+        }
+
         return '/';
     }
 
