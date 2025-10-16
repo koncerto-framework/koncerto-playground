@@ -1141,13 +1141,13 @@ class KoncertoLive extends KoncertoController
 JS;
 
         $impulsusLocations = array(
-            '/impulsus.js',
-            '/src/KoncertoImpulsus.js',
-            '/koncerto-impulsus/src/KoncertoImpulsus.js'
+            'impulsus.js',
+            'src/KoncertoImpulsus.js',
+            'koncerto-impulsus/src/KoncertoImpulsus.js'
         );
 
         $impulsusValidLocations = array_filter($impulsusLocations, function ($impulsusLocation) {
-            return is_file(dirname(__FILE__) . $impulsusLocation);
+            return is_file(dirname(__FILE__) . '/' . $impulsusLocation);
         });
 
         $impulsus = array_shift($impulsusValidLocations);
