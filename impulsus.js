@@ -42,7 +42,6 @@ function KoncertoController(element)
                 source.controller.default(source.controller);
             } catch (e) {
                 isError = true;
-                console.error(e);
             }
              if (isError || 404 === response.status) {
                 KoncertoImpulsus.fetch(element.getAttribute('data-proxy') + controllerName + '.js', {
