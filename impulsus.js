@@ -35,7 +35,16 @@ function KoncertoController(element)
         KoncertoImpulsus.fetch(currentPath + controllerName + '.js', {
             source: element
         }, function(response, source) {
-            if (404 === response.status) {
+            var isError = false;
+            try {
+                source.controller.default = eval('(function(controller) { ' + response.responseText + ' });')(source.controller);
+                KoncertoImpulsus.controllers[controllerName] = source.controller.default;
+                source.controller.default(source.controller);
+            } catch (e) {
+                isError = true;
+                console.error(e);
+            }
+             if (isError || 404 === response.status) {
                 KoncertoImpulsus.fetch(element.getAttribute('data-proxy') + controllerName + '.js', {
                     source: element
                 }, function(response, source) {
@@ -45,9 +54,7 @@ function KoncertoController(element)
                 });
                 return;
             }
-            source.controller.default = eval('(function(controller) { ' + response.responseText + ' });')(source.controller);
-            KoncertoImpulsus.controllers[controllerName] = source.controller.default;
-            source.controller.default(source.controller);
+
         });
     }
 
