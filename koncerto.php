@@ -32,14 +32,31 @@ class Koncerto
      */
     public static function loadClass($className)
     {
+        if (class_exists($className)) {
+            return;
+        }
+
         if ('clsTinyButStrong' === $className && !class_exists('clsTinyButStrong')) {
             self::loadTBS();
             return;
         }
 
-        if (!class_exists($className)) {
-            include_once dirname(__FILE__) . '/' . $className . '.php';
+        $classFile = sprintf('%s/%s.php', dirname(__FILE__), $className);
+        $root = is_string($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : '.';
+
+        if (!is_file($classFile)) {
+            $classFile = sprintf('%s/%s.php', $root, $className);
         }
+
+        if (!is_file($classFile) && 'Controller' === substr($className, -10)) {
+            $classFile = sprintf('%s/_controller/%s.php', $root, $className);
+        }
+
+        if (!is_file($classFile)) {
+            throw new Exception(sprintf('Class file [%s] not found', $classFile));
+        }
+
+        include_once $classFile;
     }
 
     /**
@@ -90,12 +107,21 @@ class Koncerto
         $pathInfo = $request->getPathInfo();
         $match = $router->match($pathInfo);
         if (null === $match && '.php' !== strrchr($pathInfo, '.') && is_file('.' . $pathInfo)) {
-            return file_get_contents('.' . $pathInfo);
+            return (string)file_get_contents('.' . $pathInfo);
         }
         if (null === $match) {
             throw new Exception(sprintf('No match for route %s', $pathInfo));
         }
         list($controller, $action) = explode('::', $match);
+        $classFile = sprintf('%s/_controller/%s.php', dirname(__FILE__), $controller);
+        if (!class_exists($controller) && is_file($classFile)) {
+            include_once $classFile;
+        }
+        $root = is_string($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : '.';
+        $classFile = sprintf('%s/_controller/%s.php', $root, $controller);
+        if (!class_exists($controller) && is_file($classFile)) {
+            include_once $classFile;
+        }
         $response = (new $controller())->$action();
         $headers = $response->getHeaders();
         foreach ($headers as $headerName => $headerValue) {
@@ -124,6 +150,85 @@ class Koncerto
                 return;
             }
         }
+    }
+
+    /**
+     * Parse internal comment
+     *
+     * @param string|false $comment
+     * @return array<array-key, mixed>
+     */
+    public static function getInternal($comment)
+    {
+        if (false === $comment) {
+            return array();
+        }
+
+        $lines = explode("\n", $comment);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            // @phpstan-ignore argument.sscanf
+            if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
+                $internal = (array)json_decode((string)$json, true);
+                return $internal;
+            }
+        }
+
+        return array();
+    }
+
+    /**
+     * Set/update cache and optionnaly returns a specific key from this cache
+     *
+     * @param string $name The cache filenale
+     * @param ?string $return The key from cache to return
+     * @param array<array-key, mixed> $data The data to put in cache, reads from cache if empty
+     * @param ?string $source Source directory or file to invalidate cache
+     * @return string|array<array-key, mixed>|null
+     */
+    public static function cache($name, $return = null, $data = array(), $source = null)
+    {
+        $result = null;
+
+        $cacheDir = '_cache/';
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir);
+        }
+        $cacheFile = $cacheDir . $name . '.json';
+        if (!is_file($cacheFile)) {
+            file_put_contents($cacheFile, '[]');
+        }
+
+        $cache = (array)json_decode((string)file_get_contents($cacheFile), true);
+
+        if (null !== $source && (is_dir($source) || is_file($source))) {
+            $stat = stat($source);
+            if (false !== $stat && $stat[9] >= filemtime($cacheFile)) {
+                $cache = array();
+            }
+        }
+
+        $cache = array_merge($cache, $data);
+
+        if (file_put_contents($cacheFile, json_encode($cache, JSON_PRETTY_PRINT))) {
+            $result = $cache;
+        }
+
+        if (null === $return) {
+            return $result;
+        }
+
+        if (!array_key_exists($return, $data)) {
+            return null;
+        }
+
+        $result = $data[$return];
+
+        if (is_string($result) || is_array($result)) {
+            return $result;
+        }
+
+        return null;
     }
 }
 
@@ -254,6 +359,31 @@ class KoncertoController
             ->setHeader('Location', $url)
             ->setContent(null);
     }
+
+    /**
+     * Get the route associated with the controller from internal comment
+     *
+     * @param class-string $className
+     * @return ?string
+     */
+    public function getRoute($className = null)
+    {
+        if (null === $className) {
+            $className = get_called_class();
+        }
+        $ref = new ReflectionClass($className);
+        $internal = Koncerto::getInternal($ref->getDocComment());
+
+        if (!array_key_exists('route', $internal)) {
+            return null;
+        }
+
+        if (!array_key_exists('name', $internal['route'])) {
+            return null;
+        }
+
+        return $internal['route']['name'];
+    }
 }
 
 
@@ -360,7 +490,8 @@ class KoncertoEntity
             $fields
         );
 
-        $entityName = strtolower(get_class($this));
+        $className = get_class($this);
+        $entityName = strtolower($className);
 
         $id = $this->getId();
         if (null === $id) {
@@ -379,6 +510,10 @@ class KoncertoEntity
                 )
             );
         } else {
+            $entity = $this->find($className, strval($data['id']));
+            if (null === $entity) {
+                return null;
+            }
             $updates = array_map(
                 function ($field, $placeholder) {
                     return sprintf('%s = %s', $field, $placeholder);
@@ -453,7 +588,7 @@ class KoncertoEntity
      *
      * @param class-string $class
      * @param array<string, string>|string|int $criteria
-     * @return KoncertoEntity[]
+     * @return KoncertoEntity|KoncertoEntity[]|null
      */
     public static function find($class, $criteria = array())
     {
@@ -461,18 +596,18 @@ class KoncertoEntity
         // @todo - get entityName and entityManager from entity internal annotation
         $dsn = Koncerto::getConfig('entityManager.default');
         if (null === $dsn) {
-            return [];
+            return array();
         }
         $pdo = new PDO($dsn);
 
         $classFile = sprintf('_entity/%s.php', $class);
         if (!is_file($classFile)) {
-            return [];
+            return array();
         }
 
         include_once $classFile;
         if (!class_exists($class)) {
-            return [];
+            return array();
         }
 
         $entityName = strtolower($class);
@@ -481,7 +616,9 @@ class KoncertoEntity
         $where = '1 = 1';
         $values = array();
 
-        if (is_string($criteria) || is_numeric($criteria)) {
+        $findById = is_string($criteria) || is_numeric($criteria);
+
+        if ($findById) {
             /** @var KoncertoEntity $entityClass */
             $id = $entityClass->getId();
             $values = array($id => $criteria);
@@ -520,36 +657,45 @@ class KoncertoEntity
 
         $query->execute($values);
 
-        return $query->fetchAll(PDO::FETCH_CLASS, $class);
+        $result = $query->fetchAll(PDO::FETCH_CLASS, $class);
+
+        if ($findById && count($result) > 1) {
+            throw new Exception(sprintf(
+                'NonUniqueResult %s for entity %s',
+                json_encode($criteria),
+                $entityName
+            ));
+        }
+
+        if ($findById) {
+            $result = empty($result) ? null : $result[0];
+        }
+
+        return $result;
     }
 
     /**
-     * Get ID column from @internal comments
+     * Get ID column from internal comments
      *
      * @return ?string
      */
     private function getId()
     {
+        $className = get_class($this);
+        $entity = Koncerto::cache('entities', $className);
+        if (is_array($entity) && array_key_exists('id', $entity) && is_string($entity['id'])) {
+            return $entity['id'];
+        }
+
         $ref = new ReflectionClass($this);
         $props = $ref->getProperties(ReflectionProperty::IS_PUBLIC);
 
         foreach ($props as $prop) {
-            $comment = $prop->getDocComment();
-            if (false === $comment) {
-                $comment = '';
-            }
-            $lines = explode("\n", $comment);
-            foreach ($lines as $line) {
-                $line = trim($line);
-                // @phpstan-ignore argument.sscanf
-                if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
-                    $internal = (array)json_decode((string)$json, true);
-                    if (!array_key_exists('key', $internal)) {
-                        return null;
-                    }
+            $internal = Koncerto::getInternal($prop->getDocComment());
+            if (array_key_exists('key', $internal)) {
+                Koncerto::cache('entities', null, array($className => array('id' => $prop->getName())));
 
-                    return $prop->getName();
-                }
+                return $prop->getName();
             }
         }
 
@@ -1025,6 +1171,12 @@ class KoncertoLive extends KoncertoController
 {
     public function __construct()
     {
+        session_start();
+        if (!array_key_exists('csrf', $_SESSION) || empty($_SESSION['csrf'])) {
+            $_SESSION['csrf'] = sha1(uniqid((string)mt_rand(), true) . microtime(true) . getmypid());
+        }
+        $request = new KoncertoRequest();
+        $request->set('_csrf', $_SESSION['csrf']);
         $this->live();
     }
 
@@ -1036,9 +1188,20 @@ class KoncertoLive extends KoncertoController
      */
     public function live()
     {
-        $props = $this->getLiveProps();
+        if (null === $this->getRoute()) {
+            throw new Exception(sprintf("Live controller [%s] requires a main route", get_class($this)));
+        }
 
         $request = new KoncertoRequest();
+        $csrf = $request->get('_csrf');
+        if (null === $csrf || !is_string($csrf)) {
+            throw new Exception('Missing required argument _csrf');
+        }
+        if (!array_key_exists('csrf', $_SESSION) || !$this->validateCsrf($_SESSION['csrf'], $csrf)) {
+            throw new Exception('Invalid csrf token');
+        }
+
+        $props = $this->getLiveProps();
 
         $obj = array();
         foreach ($props as $propName => $prop) {
@@ -1047,8 +1210,8 @@ class KoncertoLive extends KoncertoController
                 if (null !== $update) {
                     $this->$propName = $update;
                 }
-                $obj[$propName] = $this->$propName;
             }
+            $obj[$propName] = $this->$propName;
         }
 
         return $this->json($obj, array('pretty' => true));
@@ -1064,6 +1227,11 @@ class KoncertoLive extends KoncertoController
         $content = $response->getContent();
 
         $props = json_encode($this->getLiveProps());
+
+        if (!array_key_exists('csrf', $_SESSION) || empty($_SESSION['csrf'])) {
+            $_SESSION['csrf'] = sha1(uniqid((string)mt_rand(), true) . microtime(true) . getmypid());
+        }
+        $csrf = $_SESSION['csrf'];
 
         $controller = <<<JS
                     KoncertoImpulsus.controllers['live'] = function(controller) {
@@ -1091,15 +1259,15 @@ class KoncertoLive extends KoncertoController
 
                             return update;
                         }
-                        controller.on('$' + 'render',  function(element) {
-                            KoncertoImpulsus.fetch('_live?' + liveUpdate(element), false, function(response) {
+                        controller.on('$' + 'render',  function(controller) {
+                            var csrf = 'csrf=' + controller.element.dataset.csrf;
+                            KoncertoImpulsus.fetch('_live?' + csrf + liveUpdate(controller), false, function(response) {
                                 var json = JSON.parse(response.responseText);
                                 var props = liveProps();
                                 for (var propName in props) {
                                     var prop = props[propName];
                                     if (propName in json) {
-                                        // @todo - support different target type (text, input, etc)
-                                        var target = element.targets['$' + propName];
+                                        var target = controller.targets['$' + propName];
                                         var tagName = new String(target.tagName).toLowerCase();
                                         if ('input' === tagName) {
                                             if ('checkbox' === target.type) {
@@ -1128,6 +1296,7 @@ class KoncertoLive extends KoncertoController
                     window.addEventListener('load', function() {
                         setTimeout(function() {
                             document.querySelector(':root').setAttribute('data-controller', 'live');
+                            document.querySelector(':root').setAttribute('data-csrf', '{$csrf}');
                             document.querySelectorAll('[data-model]').forEach(function(model) {
                                 model.setAttribute('data-target', '$' + model.getAttribute('data-model'));
                             });
@@ -1157,7 +1326,8 @@ JS;
         }
 
         $content = str_replace('</head>', <<<HTML
-                <script data-reload onload="if (window.reloadScript) reloadScript('#live-controller-script')" src="{$impulsus}"></script>
+                <script data-reload src="{$impulsus}"
+                onload="if (window.reloadScript) reloadScript('#live-controller-script')"></script>
                 <script id="live-controller-script" type="text/javascript">
                     {$controller}
                 </script>
@@ -1174,31 +1344,50 @@ HTML, $content);
      */
     private function getLiveProps()
     {
+        $className = get_called_class();
+        $props = Koncerto::cache('live', $className);
+        if (is_array($props)) {
+            return $props;
+        }
+
         $props = array();
 
         $class = new ReflectionClass(get_called_class());
         $properties = $class->getProperties(ReflectionProperty::IS_PUBLIC);
         foreach ($properties as $property) {
-            $comment = $property->getDocComment();
-            if (false === $comment) {
-                continue;
-            }
-
-            $lines = explode("\n", $comment);
-            foreach ($lines as $line) {
-                // @phpstan-ignore argument.sscanf
-                if (1 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
-                    $internal = (array)json_decode((string)$json, true);
-                    if (array_key_exists('live', $internal) && is_array($internal['live'])) {
-                        if (array_key_exists('prop', $internal['live'])) {
-                            $props[$property->getName()] = $internal['live']['prop'];
-                        }
-                    }
+            $internal = Koncerto::getInternal($property->getDocComment());
+            if (array_key_exists('live', $internal) && is_array($internal['live'])) {
+                if (array_key_exists('prop', $internal['live'])) {
+                    $props[$property->getName()] = $internal['live']['prop'];
                 }
             }
         }
 
+        Koncerto::cache('live', null, array($className => $props));
+
         return $props;
+    }
+
+    /**
+     * Validate csrf token
+     *
+     * @param string $csrf
+     * @param string $csrfToValidate
+     * @return bool
+     */
+    private function validateCsrf($csrf, $csrfToValidate)
+    {
+        $length = strlen($csrf);
+        if ($length !== strlen($csrfToValidate)) {
+            return false;
+        }
+
+        $result = 0;
+        for ($i = 0; $i < $length; $i++) {
+            $result |= (ord($csrf[$i]) ^ ord($csrfToValidate[$i]));
+        }
+
+        return 0 === $result;
     }
 }
 
@@ -1224,7 +1413,7 @@ class KoncertoRequest
         }
 
         if ('true' === Koncerto::getConfig('routing.useHash')) {
-            return Koncerto::getConfig('request.pathInfo');
+            return (string)Koncerto::getConfig('request.pathInfo');
         }
 
         return '/';
@@ -1346,7 +1535,7 @@ class KoncertoResponse
 /**
  * Routing class
  * Koncerto matches KoncertoController classes from _controller folder
- * using @internal {"route":{name:"/"}} annotation
+ * using internal {"route":{name:"/"}} annotation
  */
 class KoncertoRouter
 {
@@ -1378,13 +1567,10 @@ class KoncertoRouter
      */
     private function getRoutes($url)
     {
-        if (!is_dir('_cache')) {
-            mkdir('_cache');
-        }
-
-        if (0 === count($this->routes) && is_file('_cache/routes.json')) {
-            $this->routes = (array)json_decode('_cache/routes.json', true);
-        }
+        $routes = Koncerto::cache('routes', null, $this->routes, '_controller');
+        $this->routes = is_array($routes) ? array_filter(array_map(function ($route) {
+            return is_string($route) ? $route : null;
+        }, $routes)) : array();
 
         if (array_key_exists($url, $this->routes)) {
             return;
@@ -1415,7 +1601,7 @@ class KoncertoRouter
             }
         }
 
-        file_put_contents('_cache/routes.json', json_encode($this->routes, JSON_PRETTY_PRINT));
+        Koncerto::cache('routes', null, $this->routes);
     }
 
     /**
@@ -1424,20 +1610,23 @@ class KoncertoRouter
      */
     private function getControllerRoutes($className)
     {
+        $ref = new ReflectionClass($className);
+        $mainRoute = (new KoncertoController())->getRoute($className);
         /**
           * @var array<string, string>
           */
         $routes = array();
-        $methods = (new ReflectionClass($className))->getMethods(ReflectionMethod::IS_PUBLIC);
+        $methods = $ref->getMethods(ReflectionMethod::IS_PUBLIC);
         foreach ($methods as $method) {
-            $comment = $method->getDocComment();
-            if (false === $comment) {
-                continue;
-            }
-
-            $routeName = $this->getControllerRoute($comment);
+            $routeName = $this->getControllerRoute($method->getDocComment());
             if (null === $routeName) {
                 continue;
+            }
+            if (empty($routeName)) {
+                $routeName = '/';
+            }
+            if (null !== $mainRoute && '/' === substr($mainRoute, 0, 1)) {
+                $routeName = $mainRoute . $routeName;
             }
 
             $routes[$routeName] = sprintf(
@@ -1451,28 +1640,21 @@ class KoncertoRouter
     }
 
     /**
-     * @param  string $comment
+     * @param  string|false $comment
      * @return ?string
      */
     public function getControllerRoute($comment)
     {
-        $lines = explode("\n", $comment);
-        foreach ($lines as $line) {
-            $line = trim($line);
-            // @phpstan-ignore argument.sscanf
-            if (2 === sscanf($line, "%*[^@]@internal %[^\n]s", $json)) {
-                $internal = (array)json_decode((string)$json, true);
-                if (!array_key_exists('route', $internal)) {
-                    return null;
-                }
-                if (!array_key_exists('name', $internal['route'])) {
-                    return null;
-                }
+        $internal = Koncerto::getInternal($comment);
 
-                return $internal['route']['name'];
-            }
+        if (!array_key_exists('route', $internal)) {
+            return null;
         }
 
-        return null;
+        if (!array_key_exists('name', $internal['route'])) {
+            return null;
+        }
+
+        return $internal['route']['name'];
     }
 }
