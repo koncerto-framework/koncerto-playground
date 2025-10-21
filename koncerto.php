@@ -256,6 +256,7 @@ class KoncertoController
         $tbs->MethodsAllowed = true;
         $tbs->ObjectRef = array();
         $tbs->ObjectRef['request'] = new KoncertoRequest();
+        $tbs->ObjectRef['router'] = new KoncertoRouter();
         $tbs->SetOption('include_path', dirname(__FILE__) . '/_templates');
         $tbs->SetOption('include_path', dirname(__FILE__) . '/../_templates');
         $tbs->SetOption('include_path', dirname(__FILE__) . '/..');
@@ -1555,6 +1556,7 @@ class KoncertoRouter
      */
     public function match($url)
     {
+        // @todo - remove arguments from url
         $this->getRoutes($url);
 
         if (array_key_exists($url, $this->routes)) {
@@ -1562,6 +1564,61 @@ class KoncertoRouter
         }
 
         return null;
+    }
+
+    /**
+     * Returns url for matching route name
+     *
+     * @param string $routeName
+     * @return string
+     */
+    public function generate($routeName)
+    {
+        $args = func_get_args();
+        array_shift($args);
+        if (1 === count($args) && is_array($args[0])) {
+            $args = $args[0];
+        } else {
+            $args = array_filter(array_map(function ($arg) {
+                return is_string($arg) ? $arg : null;
+            }, $args));
+            $args = $this->parseArgs($args);
+        }
+
+        $url = $routeName;
+
+        if (!empty($args)) {
+            $url .= '?' . http_build_query($args);
+        }
+
+        if ('true' === Koncerto::getConfig('routing.useHash')) {
+            $url = '#' . $url;
+        }
+
+        return $url;
+    }
+
+    /**
+     * Parse arguments from TBS (format name:value)
+     *
+     * @param string[] $args
+     * @return array<string, string>
+     */
+    private function parseArgs($args = array())
+    {
+        foreach ($args as $index => $arg) {
+            $nameValue = explode(':', strval($arg));
+            $name = array_shift($nameValue);
+            $value = implode(':', $nameValue);
+
+            if ('' !== $name) {
+                $args[$name] = $value;
+            }
+
+            unset($args[$index]);
+        }
+
+        return $args;
     }
 
     /**
