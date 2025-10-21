@@ -66,6 +66,9 @@ class Koncerto
     public static function setConfig($config)
     {
         Koncerto::$config = $config;
+        if (array_key_exists('documentRoot', $config)) {
+            $_SERVER['DOCUMENT_ROOT'] = $config['documentRoot'];
+        }
     }
 
     /**
@@ -202,8 +205,7 @@ class Koncerto
         $cache = (array)json_decode((string)file_get_contents($cacheFile), true);
 
         if (null !== $source && (is_dir($source) || is_file($source))) {
-            $stat = stat($source);
-            if (false !== $stat && $stat[9] >= filemtime($cacheFile)) {
+            if (filemtime($source) > filemtime($cacheFile)) {
                 $cache = array();
             }
         }
@@ -682,7 +684,7 @@ class KoncertoEntity
     private function getId()
     {
         $className = get_class($this);
-        $entity = Koncerto::cache('entities', $className);
+        $entity = Koncerto::cache('entities', $className, array(), '_entity');
         if (is_array($entity) && array_key_exists('id', $entity) && is_string($entity['id'])) {
             return $entity['id'];
         }
@@ -1171,12 +1173,12 @@ class KoncertoLive extends KoncertoController
 {
     public function __construct()
     {
-        session_start();
-        if (!array_key_exists('csrf', $_SESSION) || empty($_SESSION['csrf'])) {
-            $_SESSION['csrf'] = sha1(uniqid((string)mt_rand(), true) . microtime(true) . getmypid());
+        if (!array_key_exists('csrf', $_COOKIE) || empty($_COOKIE['csrf'])) {
+            $_COOKIE['csrf'] = sha1(uniqid((string)mt_rand(), true) . microtime(true) . getmypid());
+            setcookie('csrf', $_COOKIE['csrf']);
         }
         $request = new KoncertoRequest();
-        $request->set('_csrf', $_SESSION['csrf']);
+        $request->set('_csrf', $_COOKIE['csrf']);
         $this->live();
     }
 
@@ -1197,7 +1199,7 @@ class KoncertoLive extends KoncertoController
         if (null === $csrf || !is_string($csrf)) {
             throw new Exception('Missing required argument _csrf');
         }
-        if (!array_key_exists('csrf', $_SESSION) || !$this->validateCsrf($_SESSION['csrf'], $csrf)) {
+        if (!array_key_exists('csrf', $_COOKIE) || !$this->validateCsrf($_COOKIE['csrf'], $csrf)) {
             throw new Exception('Invalid csrf token');
         }
 
@@ -1228,10 +1230,11 @@ class KoncertoLive extends KoncertoController
 
         $props = json_encode($this->getLiveProps());
 
-        if (!array_key_exists('csrf', $_SESSION) || empty($_SESSION['csrf'])) {
-            $_SESSION['csrf'] = sha1(uniqid((string)mt_rand(), true) . microtime(true) . getmypid());
+        if (!array_key_exists('csrf', $_COOKIE) || empty($_COOKIE['csrf'])) {
+            $_COOKIE['csrf'] = sha1(uniqid((string)mt_rand(), true) . microtime(true) . getmypid());
+            setcookie('csrf', $_COOKIE['csrf']);
         }
-        $csrf = $_SESSION['csrf'];
+        $csrf = $_COOKIE['csrf'];
 
         $controller = <<<JS
                     KoncertoImpulsus.controllers['live'] = function(controller) {
@@ -1345,7 +1348,7 @@ HTML, $content);
     private function getLiveProps()
     {
         $className = get_called_class();
-        $props = Koncerto::cache('live', $className);
+        $props = Koncerto::cache('live', $className, array(), '_controller');
         if (is_array($props)) {
             return $props;
         }
@@ -1428,7 +1431,7 @@ class KoncertoRequest
         if ('true' === Koncerto::getConfig('routing.useHash') && null !== Koncerto::getConfig('request.queryString')) {
             $queryString = array();
             parse_str(Koncerto::getConfig('request.queryString'), $queryString);
-            $_REQUEST = $queryString;
+            $_REQUEST = array_merge($queryString, $_REQUEST);
         }
 
         if (!array_key_exists($argName, $_REQUEST)) {
@@ -1626,7 +1629,7 @@ class KoncertoRouter
                 $routeName = '/';
             }
             if (null !== $mainRoute && '/' === substr($mainRoute, 0, 1)) {
-                $routeName = $mainRoute . $routeName;
+                $routeName = $mainRoute . ('/' !== $routeName ? $routeName : '');
             }
 
             $routes[$routeName] = sprintf(

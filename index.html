@@ -9,6 +9,20 @@
                 return `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
             }
 
+            var useHash = true;
+            var pathInfo = new String(location.pathname);
+            var queryString = new String(location.search);
+            if (useHash) {
+                pathInfo = new String(location.hash).substring(1);
+                if (-1 !== pathInfo.indexOf('?')) {
+                    queryString = pathInfo.substring(pathInfo.indexOf('?') + 1);
+                    pathInfo = pathInfo.substring(0, pathInfo.indexOf('?'));
+                }
+            }
+            if ('' === pathInfo) {
+                pathInfo = '/';
+            }
+
             var files = [
                 {
                     name: 'koncerto.php',
@@ -81,6 +95,15 @@
                 }
 
                 require_once('/preload/koncerto.php');
+
+                Koncerto::setConfig(array(
+                    'routing' => array('useHash' => '${useHash}'),
+                    'documentRoot' => '/preload/',
+                    'request' => array(
+                        'pathInfo' => '${pathInfo}',
+                        'queryString' => '${queryString}'
+                    )
+                ));
 
                 echo Koncerto::response();
             `;
