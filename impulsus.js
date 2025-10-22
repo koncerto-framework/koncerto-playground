@@ -306,8 +306,11 @@ var KoncertoImpulsus = {
                 history.forEach(function(entry) {
                     document.title = entry.title;
                     var frame = document.getElementById(entry.frame);
-                    frame.innerHTML = entry.html;
-                    frame.removeAttribute('data-impulsus');
+                    console.debug(entry.frame, frame.getAttribute('data-impulsus'));
+                    if (frame.hasAttribute('data-impulsus') && 'true' === frame.getAttribute('data-impulsus')) {
+                        frame.innerHTML = entry.html;
+                        frame.removeAttribute('data-impulsus');
+                    }
                 });
                 KoncertoImpulsus.init();
             });
