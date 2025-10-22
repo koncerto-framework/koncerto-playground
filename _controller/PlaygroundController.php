@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * @internal { "route": {"name": "/"} }
+ */
 class PlaygroundController extends KoncertoLive
 {
     /**
@@ -9,26 +12,31 @@ class PlaygroundController extends KoncertoLive
     public function index() {
         $files = array();
 
-        $d = 'project/';
+        $d = 'projects/';
         if (!is_dir($d)) {
             mkdir($d);
         }
 
-        $dir = opendir($d);
-        while ($f = readdir($dir)) {
-            if (is_dir($d . $f) && '_' === substr($f, 0, 1)) {
-                $files[$f] = array_filter(scandir($d . $f), function ($file) {
-                    return '.' !== substr($file, 0, 1);
-                });
+        $files = array();
+
+        $request = new KoncertoRequest();
+        $project = $request->get('project');
+        if (null !== $project) {
+            $d .= $project . '/';
+            $dir = opendir($d);
+            while ($f = readdir($dir)) {
+                if (is_dir($d . $f) && '_' === substr($f, 0, 1)) {
+                    $files[$f] = array_filter(scandir($d . $f), function ($file) {
+                        return '.' !== substr($file, 0, 1);
+                    });
+                }
             }
         }
+
+
         return $this->render('_templates/index.tbs.html', array(
             'title' => 'Welcome',
-            'files' => $files,
-            'playgroundScript' => sprintf(
-                '<script data-reload type="text/javascript">%s</script>',
-                file_get_contents('_templates/playground.js')
-            )
+            'files' => $files
         ));
     }
 }

@@ -1,0 +1,12 @@
+[
+    {
+        "name": "koncerto.php",
+        "parent": "/preload/",
+        "url": "https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground/koncerto.php"
+    },
+    {
+        "name": "tbs_class.php",
+        "parent": "/preload/",
+        "url": "https://cdn.jsdelivr.net/gh/Skrol29/tinybutstrong@latest/tbs_class.php"
+    }
+]

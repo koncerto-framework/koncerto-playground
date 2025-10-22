@@ -1,0 +1,12 @@
+{
+    "_proxy": "https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground@latest/%s/%s",
+    "_localStorage": "projects/",
+    "_controller": [
+        "PlaygroundController.php",
+        "playground.js"
+    ],
+    "_templates": [
+        "_layout.tbs.html",
+        "index.tbs.html"
+    ]
+}

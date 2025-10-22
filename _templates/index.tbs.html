@@ -5,10 +5,9 @@
     [onload;file=_layout.tbs.html;getpart=head]
 </head>
 
-<body data-controller="playground"
-data-proxy="https://api.codetabs.com/v1/proxy?quest=https://github.com/koncerto-framework/koncerto-playground/raw/refs/heads/main/_controller/">
+<body data-controller="playground" data-proxy="https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground/%s">
     [onload;file=_layout.tbs.html;getpart=(header)]
-    <section class="section" style="padding-top: 100px; box-sizing: border-box; height: 100vh;">
+    <section data-impulsus="false" class="section" style="padding-top: 100px; box-sizing: border-box; height: 100vh;">
         <div class="columns is-mobile" style="height: 100%;">
             <div class="column is-narrow">
                 <nav class="panel is-primary">
@@ -19,7 +18,7 @@ data-proxy="https://api.codetabs.com/v1/proxy?quest=https://github.com/koncerto-
                             <p data-directory="[files.$]" data-target="directory" class="menu-label">[files.$]</p>
                             <ul data-parent="[files.$]" class="menu-list">
                                 <li>
-                                        <a href="#[files.$]/[files_sub1.val;block=li]"
+                                        <a href="#?[files.$]/[files_sub1.val;block=li]"
                                         onclick="window.loadFile('[files.$;strconv=js]/[files_sub1.val;strconv=js]');">
                                             [files_sub1.val]
                                         </a>
@@ -102,7 +101,6 @@ data-proxy="https://api.codetabs.com/v1/proxy?quest=https://github.com/koncerto-
                     })
                 });
                 </script>
-                [playgroundScript;strconv=no;protect=no;noerr]
             </div>
         </div>
 

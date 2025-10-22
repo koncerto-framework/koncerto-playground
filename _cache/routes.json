@@ -1,4 +1,0 @@
-{
-    "\/": "PlaygroundController::index",
-    "\/_live": "PlaygroundController::live"
-}
