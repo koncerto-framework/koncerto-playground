@@ -23,6 +23,9 @@ class PlaygroundController extends KoncertoLive
         $project = $request->get('project');
         if (null !== $project) {
             $d .= $project . '/';
+            if (!is_dir($d)) {
+                mkdir($d);
+            }
             $dir = opendir($d);
             while ($f = readdir($dir)) {
                 if (is_dir($d . $f) && '_' === substr($f, 0, 1)) {
