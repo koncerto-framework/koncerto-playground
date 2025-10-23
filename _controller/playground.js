@@ -118,7 +118,7 @@ return function(controller) {
         var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
         var params = new URLSearchParams(path);
         var path = params.get('project') ?? '';
-        if (path.startsWith('/')) {
+        if ('' !== path) {
             window.openProject(path.substring(1));
         }
         window.editor.getModel().onDidChangeContent(function(event) {
@@ -207,7 +207,6 @@ return function(controller) {
         var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
         var params = new URLSearchParams(path);
         params.set('project', '/' + projectName);
-        location.hash = '#?' + params.toString();
         document.getElementById('modal-open-project').classList.remove('is-active');
         document.querySelector('ul[data-parent] > li > a').click();
     });
