@@ -42,4 +42,13 @@ class PlaygroundController extends KoncertoLive
             'files' => $files
         ));
     }
+
+    /**
+     * @internal { "route": {"name": "/run/"} }
+     * @return KoncertoReponse
+     */
+    public function run()
+    {
+        return (new KoncertoResponse())->setContent(file_get_contents('run/index.html'));
+    }
 }

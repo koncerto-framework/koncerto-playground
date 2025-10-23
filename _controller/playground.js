@@ -5,6 +5,7 @@ return function(controller) {
     window.currentProject = '';
     window.currentDirectory = '';
     window.currentFile = '';
+    window.fileModified = 0;
 
     window.openProject = function(projectName) {
         if (undefined === projectName) {
@@ -13,25 +14,7 @@ return function(controller) {
         if ('' === (projectName ?? '').trim()) {
             return;
         }
-        document.querySelector('.panel-heading').innerText = projectName;
-        var menu = document.querySelector('.menu');
-        menu.innerHTML = '';
-        newDirectory('_controller');
-        newDirectory('_templates');
-        window.currentProject = projectName;
-        for (var i in window.localStorage) {
-            var path = `projects/${projectName}/`;
-            if (0 === i.indexOf(path)) {
-                var name = i.substring(i.lastIndexOf('/') + 1);
-                window.currentDirectory = i.substring(path.length, i.lastIndexOf('/'));
-                window.newFile(name, window.localStorage.getItem(i));
-            }
-        }
-        var hash = location.hash.substring(1);
-        var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
-        var params = new URLSearchParams(path);
-        params.set('project', '/' + projectName);
-        location.hash = '#?' + params.toString();
+
     }
     window.newDirectory = function(name) {
         if (undefined === name) {
@@ -138,14 +121,39 @@ return function(controller) {
         if (path.startsWith('/')) {
             window.openProject(path.substring(1));
         }
+        window.editor.getModel().onDidChangeContent(function(event) {
+            window.fileModified++;
+        });
     }, 2000);
+
+    setInterval(function() {
+        if (window.fileModified > 1) {
+            document.querySelector('a[data-file].is-active')?.classList.add('has-background-danger');
+            window.fileModified--;
+            return;
+        }
+        if (window.fileModified > 0) {
+            window.fileModified--;
+            window.saveFile();
+        } else {
+            document.querySelector('a[data-file].is-active')?.classList.remove('has-background-danger');
+        }
+    }, 200);
 
     controller.on('burger', function (controller) {
         controller.targets.menu.classList.toggle('is-active');
     });
 
-    controller.on('newProject', function (controller) {
-        var projectName = prompt('Project name');
+    controller.on('closeModal', function () {
+        document.querySelector('.modal.is-active').classList.remove('is-active');
+    });
+
+    controller.on('newProject', function () {
+        document.getElementById('modal-new-project').classList.add('is-active');
+    });
+
+    controller.on('newProjectConfirm', function() {
+        var projectName = document.getElementById('new-project-name').value;
         if ('' === (projectName ?? '').trim()) {
             return;
         }
@@ -155,5 +163,52 @@ return function(controller) {
         newDirectory('_controller');
         newDirectory('_templates');
         window.currentProject = projectName;
+        document.getElementById('modal-new-project').classList.remove('is-active');
+    });
+
+    controller.on('openProject', function () {
+        var projects = [];
+        for (var file in localStorage) {
+            var parts = file.split('/');
+            if ('projects' === parts[0] && parts.length >= 2) {
+                projects.push(parts[1]);
+            }
+        }
+        projects = projects.filter((value, index, array) => array.indexOf(value) === index);
+        document.getElementById('open-project-name').innerText = '';
+        projects.forEach(function(project) {
+            var option = document.createElement('option');
+            option.innerText = project;
+            document.getElementById('open-project-name').appendChild(option);
+        });
+        document.getElementById('modal-open-project').classList.add('is-active');
+    });
+
+    controller.on('openProjectConfirm', function() {
+        var projectName = document.getElementById('open-project-name').value;
+        if ('' === (projectName ?? '').trim()) {
+            return;
+        }
+        document.querySelector('.panel-heading').innerText = projectName;
+        var menu = document.querySelector('.menu');
+        menu.innerHTML = '';
+        newDirectory('_controller');
+        newDirectory('_templates');
+        window.currentProject = projectName;
+        for (var i in window.localStorage) {
+            var path = `projects/${projectName}/`;
+            if (0 === i.indexOf(path)) {
+                var name = i.substring(i.lastIndexOf('/') + 1);
+                window.currentDirectory = i.substring(path.length, i.lastIndexOf('/'));
+                window.newFile(name, window.localStorage.getItem(i));
+            }
+        }
+        var hash = location.hash.substring(1);
+        var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
+        var params = new URLSearchParams(path);
+        params.set('project', '/' + projectName);
+        location.hash = '#?' + params.toString();
+        document.getElementById('modal-open-project').classList.remove('is-active');
+        document.querySelector('ul[data-parent] > li > a').click();
     });
 }

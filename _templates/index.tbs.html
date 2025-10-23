@@ -40,11 +40,21 @@
                         language: 'php'
                     });
 
+                    function getHtmlCompletionProvider(monaco) {
+                        return {
+                            provideCompletionItems: function (model, position) {
+                                window.saveFile();
+                                return { suggestions: [] };
+                            }
+                        };
+                    }
+
                     function getPhpCompletionProvider(monaco) {
                         var comments = ['internal', 'param', 'return'];
                         return {
                             triggerCharacters: ['@', ' ', '{'],
                             provideCompletionItems: function (model, position) {
+                                window.saveFile();
                                 var text = model.getValueInRange({startLineNumber: 1, startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column});
                                 var suggestions = [];
                                 var keyword = text.split(' ').pop();
@@ -88,7 +98,7 @@
                     }
 
                     monaco.languages.registerCompletionItemProvider('php', getPhpCompletionProvider(monaco));
-
+                    monaco.languages.registerCompletionItemProvider('html', getHtmlCompletionProvider(monaco));
                 });
 
                 document.querySelectorAll('.navbar-dropdown a').forEach(function (a) {
@@ -103,7 +113,45 @@
                 </script>
             </div>
         </div>
-
+        <div id="modal-new-project" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">New project</p>
+                    <button class="delete" aria-label="close" data-action="click->playground#closeModal"></button>
+                </header>
+                <section class="modal-card-body">
+                    <input id="new-project-name" class="input" type="text" placeholder="Project name" />
+                </section>
+                <footer class="modal-card-foot">
+                    <div class="buttons">
+                        <button class="button is-success" data-action="click->playground#newProjectConfirm">Save &amp; open</button>
+                        <button class="button" data-action="click->playground#closeModal">Cancel</button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+        <div id="modal-open-project" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">Open project</p>
+                    <button class="delete" aria-label="close" data-action="click->playground#closeModal"></button>
+                </header>
+                <section class="modal-card-body">
+                    <div class="select is-multiple is-fullwidth">
+                        <select id="open-project-name" size="5" class="is-fullwidth" style="min-height: 20vh;">
+                        </select>
+                    </div>
+                </section>
+                <footer class="modal-card-foot">
+                    <div class="buttons">
+                        <button class="button is-success" data-action="click->playground#openProjectConfirm">Open</button>
+                        <button class="button" data-action="click->playground#closeModal">Cancel</button>
+                    </div>
+                </footer>
+            </div>
+        </div>
     </section>
 </body>
 
