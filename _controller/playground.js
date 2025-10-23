@@ -7,15 +7,6 @@ return function(controller) {
     window.currentFile = '';
     window.fileModified = 0;
 
-    window.openProject = function(projectName) {
-        if (undefined === projectName) {
-            projectName = prompt('Project name');
-        }
-        if ('' === (projectName ?? '').trim()) {
-            return;
-        }
-
-    }
     window.newDirectory = function(name) {
         if (undefined === name) {
             name = prompt('Directory name');
@@ -118,8 +109,21 @@ return function(controller) {
         var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
         var params = new URLSearchParams(path);
         var path = params.get('project') ?? '';
-        if ('' !== path) {
-            window.openProject(path.substring(1));
+        if (path.startsWith('/')) {
+            var projectName = path.substring(1);
+            console.debug(projectName);
+            document.querySelector('[data-action$=openProject]').click();
+            setTimeout(function() {
+                var list = document.getElementById('open-project-name');
+                for (var i = 0 ; i < list.options.length; i++) {
+                    if (projectName === list.options[i].text) {
+                        list.options.selectedIndex = i;
+                        break;
+                    }
+                }
+                document.querySelector('[data-action$=openProjectConfirm]').click();
+                // @todo - Open file
+            }, 1000);
         }
         window.editor.getModel().onDidChangeContent(function(event) {
             window.fileModified++;
@@ -153,7 +157,8 @@ return function(controller) {
     });
 
     controller.on('newProjectConfirm', function() {
-        var projectName = document.getElementById('new-project-name').value;
+        var list = document.getElementById('open-project-name');
+        var projectName = list.options[list.options.selectedIndex].text;
         if ('' === (projectName ?? '').trim()) {
             return;
         }
@@ -186,6 +191,7 @@ return function(controller) {
 
     controller.on('openProjectConfirm', function() {
         var projectName = document.getElementById('open-project-name').value;
+        console.debug(projectName);
         if ('' === (projectName ?? '').trim()) {
             return;
         }
