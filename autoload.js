@@ -50,8 +50,16 @@ function php(target, files, storage, proxy) {
     var localMapping = '';
     if ('_localStorage' in storage) {
         localPrefix = storage['_localStorage'];
+        var cookies = document.cookie.split(';');
+        cookies.forEach(function (cookie) {
+            var nameValue = trim(cookie).split('=');
+            var name = nameValue.shift();
+            var value = nameValue.join('=');
+            localPrefix = localPrefix.replace('#' + name + '#', value);
+        });
         var params = new URLSearchParams(queryString);
         params.keys().forEach(function (key) {
+            document.cookie = key + '=' + params.get(key) + '; SameSite=None; Secure';
             localPrefix = localPrefix.replace('#' + key + '#', params.get(key));
         });
         var parts = localPrefix.split('->');
