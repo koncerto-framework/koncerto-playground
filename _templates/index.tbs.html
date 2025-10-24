@@ -152,6 +152,42 @@
                 </footer>
             </div>
         </div>
+        <div id="modal-new-folder" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">New folder</p>
+                    <button class="delete" aria-label="close" data-action="click->playground#closeModal"></button>
+                </header>
+                <section class="modal-card-body">
+                    <input id="new-folder-name" class="input" type="text" placeholder="File name" />
+                </section>
+                <footer class="modal-card-foot">
+                    <div class="buttons">
+                        <button class="button is-success" data-action="click->playground#newFolderConfirm">Save &amp; open</button>
+                        <button class="button" data-action="click->playground#closeModal">Cancel</button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+        <div id="modal-new-file" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">New file</p>
+                    <button class="delete" aria-label="close" data-action="click->playground#closeModal"></button>
+                </header>
+                <section class="modal-card-body">
+                    <input id="new-file-name" class="input" type="text" placeholder="File name" />
+                </section>
+                <footer class="modal-card-foot">
+                    <div class="buttons">
+                        <button class="button is-success" data-action="click->playground#newFileConfirm">Save &amp; open</button>
+                        <button class="button" data-action="click->playground#closeModal">Cancel</button>
+                    </div>
+                </footer>
+            </div>
+        </div>
     </section>
 </body>
 

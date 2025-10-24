@@ -7,26 +7,6 @@ return function(controller) {
     window.currentFile = '';
     window.fileModified = 0;
 
-    window.newDirectory = function(name) {
-        if (undefined === name) {
-            name = prompt('Directory name');
-        }
-        if ('' === (name ?? '').trim()) {
-            return;
-        }
-        var p = document.createElement('p');
-        p.setAttribute('data-directory', name);
-        p.setAttribute('class', 'menu-label');
-        p.setAttribute('style', 'cursor: pointer');
-        p.setAttribute('onclick', 'window.setCurrentDirectory(this);')
-        p.innerText = name;
-        var menu = document.querySelector('.menu');
-        menu.appendChild(p);
-        var ul = document.createElement('ul');
-        ul.setAttribute('data-parent', name);
-        ul.setAttribute('class', 'menu-list');
-        menu.appendChild(ul);
-    }
     window.setCurrentDirectory = function(el) {
         var name = el.getAttribute('data-directory');
         window.currentDirectory = name;
@@ -35,34 +15,6 @@ return function(controller) {
             active.classList.remove('has-text-weight-bold');
         }
         el.classList.add('has-text-weight-bold');
-    }
-    window.newFile = function(name, content) {
-        if ('' === window.currentDirectory) {
-            return;
-        }
-        var menu = document.querySelector(`[data-parent="${window.currentDirectory}"]`);
-        if (null === menu) {
-            return;
-        }
-        if (undefined === name) {
-            name = prompt('File name');
-        }
-        if ('' === (name ?? '').trim()) {
-            return;
-        }
-        var li = document.createElement('li');
-        menu.appendChild(li);
-        var a = document.createElement('a');
-        a.setAttribute('href', `#?project=%2F${window.currentProject}&file=${window.currentDirectory}%2F${name}`);
-        a.setAttribute('data-file', `${window.currentDirectory}/${name}`);
-        a.setAttribute('class', 'is-active');
-        a.setAttribute('onclick', 'loadFile(this); document.querySelector(\'[data-directory=\' + this.closest(\'ul\').dataset.parent + \']\').click(); this.classList.add(\'is-active\');');
-        a.innerText = name;
-        li.appendChild(a);
-        if (undefined === content) {
-            window.localStorage.setItem(`projects/${window.currentProject}/${window.currentDirectory}/${name}`, '');
-        }
-        window.loadFile(a);
     }
     window.loadFile = function (path) {
         var el = null;
@@ -214,5 +166,59 @@ return function(controller) {
         params.set('project', '/' + projectName);
         document.getElementById('modal-open-project').classList.remove('is-active');
         document.querySelector('ul[data-parent] > li > a').click();
+    });
+
+    controller.on('newFolder', function () {
+        document.getElementById('modal-new-folder').classList.add('is-active');
+    });
+
+    controller.on('newFolderConfirm', function () {
+        var name = document.getElementById('new-folder-name').value;
+        if ('' === (name ?? '').trim()) {
+            return;
+        }
+        var p = document.createElement('p');
+        p.setAttribute('data-directory', name);
+        p.setAttribute('class', 'menu-label');
+        p.setAttribute('style', 'cursor: pointer');
+        p.setAttribute('onclick', 'window.setCurrentDirectory(this);')
+        p.innerText = name;
+        var menu = document.querySelector('.menu');
+        menu.appendChild(p);
+        var ul = document.createElement('ul');
+        ul.setAttribute('data-parent', name);
+        ul.setAttribute('class', 'menu-list');
+        menu.appendChild(ul);
+    });
+
+    controller.on('newFile', function () {
+        document.getElementById('modal-new-file').classList.add('is-active');
+    });
+
+    controller.on('newFileConfirm', function () {
+        if ('' === window.currentDirectory) {
+            return;
+        }
+        var menu = document.querySelector(`[data-parent="${window.currentDirectory}"]`);
+        if (null === menu) {
+            return;
+        }
+        var name = document.getElementById('new-file-name').value;
+        if ('' === (name ?? '').trim()) {
+            return;
+        }
+        var li = document.createElement('li');
+        menu.appendChild(li);
+        var a = document.createElement('a');
+        a.setAttribute('href', `#?project=%2F${window.currentProject}&file=${window.currentDirectory}%2F${name}`);
+        a.setAttribute('data-file', `${window.currentDirectory}/${name}`);
+        a.setAttribute('class', 'is-active');
+        a.setAttribute('onclick', 'loadFile(this); document.querySelector(\'[data-directory=\' + this.closest(\'ul\').dataset.parent + \']\').click(); this.classList.add(\'is-active\');');
+        a.innerText = name;
+        li.appendChild(a);
+        if (undefined === content) {
+            window.localStorage.setItem(`projects/${window.currentProject}/${window.currentDirectory}/${name}`, '');
+        }
+        window.loadFile(a);
     });
 }
