@@ -157,8 +157,7 @@ return function(controller) {
     });
 
     controller.on('newProjectConfirm', function() {
-        var list = document.getElementById('open-project-name');
-        var projectName = list.options[list.options.selectedIndex].text;
+        var projectName = document.getElementById('new-project-name').value;
         if ('' === (projectName ?? '').trim()) {
             return;
         }
