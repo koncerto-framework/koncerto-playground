@@ -8,5 +8,10 @@
         "name": "tbs_class.php",
         "parent": "/preload/",
         "url": "https://cdn.jsdelivr.net/gh/Skrol29/tinybutstrong@latest/tbs_class.php"
+    },
+    {
+        "name": "Introduction.md",
+        "parent": "/preload/",
+        "url": "@proxy:https://raw.githubusercontent.com/wiki/koncerto-framework/koncerto-playground/Introduction.md"
     }
 ]
