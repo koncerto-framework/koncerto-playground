@@ -7,6 +7,51 @@ return function(controller) {
     window.currentFile = '';
     window.fileModified = 0;
 
+    /**
+     * Add a folder to the explorer
+     *
+     * @param {string} name
+     */
+    controller.newFolder = function(name)
+    {
+        var p = document.createElement('p');
+        p.setAttribute('data-directory', name);
+        p.setAttribute('class', 'menu-label');
+        p.setAttribute('style', 'cursor: pointer');
+        p.setAttribute('onclick', 'window.setCurrentDirectory(this);')
+        p.innerText = name;
+        var menu = document.querySelector('.menu');
+        menu.appendChild(p);
+        var ul = document.createElement('ul');
+        ul.setAttribute('data-parent', name);
+        ul.setAttribute('class', 'menu-list');
+        menu.appendChild(ul);
+    }
+
+    /**
+     * Add a file to the explorer
+     *
+     * @param {HTMLElement} menu
+     * @param {string} name
+     * @param {string} ?content
+     */
+    controller.newFile = function(menu, name, content)
+    {
+        var li = document.createElement('li');
+        var a = document.createElement('a');
+        a.setAttribute('href', `#?project=%2F${window.currentProject}&file=${window.currentDirectory}%2F${name}`);
+        a.setAttribute('data-file', `${window.currentDirectory}/${name}`);
+        a.setAttribute('onclick', 'loadFile(this); document.querySelector(\'[data-directory=\' + this.closest(\'ul\').dataset.parent + \']\').click(); this.classList.add(\'is-active\');');
+        a.innerText = name;
+        li.appendChild(a);
+        menu.appendChild(li);
+        if (undefined === content) {
+            window.localStorage.setItem(`projects/${window.currentProject}/${window.currentDirectory}/${name}`, '');
+        }
+
+        return a;
+    }
+
     // @todo - actions, triggers, listeners, etc
     window.setCurrentDirectory = function(el) {
         var name = el.getAttribute('data-directory');
@@ -113,7 +158,7 @@ return function(controller) {
         document.getElementById('modal-new-project').classList.add('is-active');
     });
 
-    controller.on('newProjectConfirm', function() {
+    controller.on('newProjectConfirm', function(controller) {
         var projectName = document.getElementById('new-project-name').value;
         if ('' === (projectName ?? '').trim()) {
             return;
@@ -121,8 +166,8 @@ return function(controller) {
         document.querySelector('.panel-heading').innerText = projectName;
         var menu = document.querySelector('.menu');
         menu.innerHTML = '';
-        newDirectory('_controller');
-        newDirectory('_templates');
+        controller.newFolder('_controller');
+        controller.newFolder('_templates');
         window.currentProject = projectName;
         document.getElementById('modal-new-project').classList.remove('is-active');
     });
@@ -145,55 +190,50 @@ return function(controller) {
         document.getElementById('modal-open-project').classList.add('is-active');
     });
 
-    controller.on('openProjectConfirm', function() {
+    controller.on('openProjectConfirm', function(controller) {
         var projectName = document.getElementById('open-project-name').value;
-        console.debug(projectName);
         if ('' === (projectName ?? '').trim()) {
             return;
         }
         document.querySelector('.panel-heading').innerText = projectName;
         var menu = document.querySelector('.menu');
         menu.innerHTML = '';
-        newDirectory('_controller');
-        newDirectory('_templates');
+        controller.newFolder('_controller');
+        controller.newFolder('_templates');
         window.currentProject = projectName;
         for (var i in window.localStorage) {
             var path = `projects/${projectName}/`;
             if (0 === i.indexOf(path)) {
                 var name = i.substring(i.lastIndexOf('/') + 1);
                 window.currentDirectory = i.substring(path.length, i.lastIndexOf('/'));
-                window.newFile(name, window.localStorage.getItem(i));
+                var dir = document.querySelector('ul[data-parent=' + window.currentDirectory + ']');
+                if (null === dir) {
+                    controller.newFolder(window.currentDirectory);
+                    dir = document.querySelector('ul[data-parent=' + window.currentDirectory + ']');
+                }
+                controller.newFile(dir, name, window.localStorage.getItem(i));
             }
         }
         var hash = location.hash.substring(1);
         var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
         var params = new URLSearchParams(path);
         params.set('project', '/' + projectName);
-        document.getElementById('modal-open-project').classList.remove('is-active');
         document.querySelector('ul[data-parent] > li > a').click();
+        document.getElementById('modal-open-project').classList.remove('is-active');
     });
 
     controller.on('newFolder', function () {
         document.getElementById('modal-new-folder').classList.add('is-active');
     });
 
-    controller.on('newFolderConfirm', function () {
+    controller.on('newFolderConfirm', function (controller) {
         var name = document.getElementById('new-folder-name').value;
         if ('' === (name ?? '').trim()) {
             return;
         }
-        var p = document.createElement('p');
-        p.setAttribute('data-directory', name);
-        p.setAttribute('class', 'menu-label');
-        p.setAttribute('style', 'cursor: pointer');
-        p.setAttribute('onclick', 'window.setCurrentDirectory(this);')
-        p.innerText = name;
-        var menu = document.querySelector('.menu');
-        menu.appendChild(p);
-        var ul = document.createElement('ul');
-        ul.setAttribute('data-parent', name);
-        ul.setAttribute('class', 'menu-list');
-        menu.appendChild(ul);
+        controller.newFolder(name);
+        document.querySelector('[data-directory=' + name + ']').click();
+        document.getElementById('modal-new-folder').classList.remove('is-active');
     });
 
     controller.on('newFile', function () {
@@ -212,18 +252,8 @@ return function(controller) {
         if ('' === (name ?? '').trim()) {
             return;
         }
-        var li = document.createElement('li');
-        menu.appendChild(li);
-        var a = document.createElement('a');
-        a.setAttribute('href', `#?project=%2F${window.currentProject}&file=${window.currentDirectory}%2F${name}`);
-        a.setAttribute('data-file', `${window.currentDirectory}/${name}`);
-        a.setAttribute('class', 'is-active');
-        a.setAttribute('onclick', 'loadFile(this); document.querySelector(\'[data-directory=\' + this.closest(\'ul\').dataset.parent + \']\').click(); this.classList.add(\'is-active\');');
-        a.innerText = name;
-        li.appendChild(a);
-        if (undefined === content) {
-            window.localStorage.setItem(`projects/${window.currentProject}/${window.currentDirectory}/${name}`, '');
-        }
-        window.loadFile(a);
+        var file = controller.newFile(menu, name);
+        window.loadFile(file);
+        document.getElementById('modal-new-file').classList.remove('is-active');
     });
 }
