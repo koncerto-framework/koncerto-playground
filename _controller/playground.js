@@ -7,6 +7,7 @@ return function(controller) {
     window.currentFile = '';
     window.fileModified = 0;
 
+    // @todo - actions, triggers, listeners, etc
     window.setCurrentDirectory = function(el) {
         var name = el.getAttribute('data-directory');
         window.currentDirectory = name;
@@ -16,6 +17,7 @@ return function(controller) {
         }
         el.classList.add('has-text-weight-bold');
     }
+
     window.loadFile = function (path) {
         var el = null;
         if (!('string' === typeof path)) {
@@ -39,12 +41,14 @@ return function(controller) {
             active.classList.remove('is-active');
         }
     }
+
     window.saveFile = function() {
         if ('' === window.currentFile) {
             return;
         }
         localStorage.setItem(window.currentFile, window.editor.getValue());
     }
+
     window.addEventListener('resize', function(event) {
         var parent = document.querySelector('#container').parentElement;
         window.editor.layout({ width: 0, height: 0 });
@@ -53,9 +57,11 @@ return function(controller) {
             window.editor.layout({ width: rect.width, height: rect.height });
         });
     });
+
     window.run = function() {
         window.open(`run/#?project=/${window.currentProject}`);
     }
+
     setTimeout(function() {
         var hash = location.hash.substring(1);
         var path = -1 !== hash.indexOf('?') ? hash.substring(hash.indexOf('?') + 1) : '';
@@ -63,7 +69,6 @@ return function(controller) {
         var path = params.get('project') ?? '';
         if (path.startsWith('/')) {
             var projectName = path.substring(1);
-            console.debug(projectName);
             document.querySelector('[data-action$=openProject]').click();
             setTimeout(function() {
                 var list = document.getElementById('open-project-name');
