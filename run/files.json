@@ -2,7 +2,7 @@
     {
         "name": "koncerto.php",
         "parent": "/preload/",
-        "url": "https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground/koncerto.php"
+        "url": "https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground@latest/koncerto.php"
     },
     {
         "name": "tbs_class.php",

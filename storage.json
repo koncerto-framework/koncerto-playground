@@ -1,5 +1,5 @@
 {
-    "_proxy": "https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground/%s/%s",
+    "_proxy": "https://cdn.jsdelivr.net/gh/koncerto-framework/koncerto-playground@latest/%s/%s",
     "_localStorage": "projects/",
     "_controller": [
         "PlaygroundController.php",
